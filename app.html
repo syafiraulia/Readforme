@@ -1011,22 +1011,39 @@ function updatePlayBtn(){
 /* layar tetap menyala selama memutar (Screen Wake Lock; iOS 16.4+, Chrome/Android) */
 let wakeLock=null;
 function wakeOk(){ return !!(navigator.wakeLock&&navigator.wakeLock.request); }
-async function syncWake(){
-  const want=wakeOk()&&S.settings.keepAwake!==false&&document.visibilityState==='visible';
+/* cadangan untuk iPhone/layar yang belum mendukung: video kosong 1 detik diputar berulang tanpa suara (trik NoSleep) */
+let nsVid=null;
+function nsStart(){
   try{
-    if(want&&!wakeLock){
+    if(!nsVid){
+      nsVid=document.createElement('video');
+      nsVid.setAttribute('playsinline',''); nsVid.setAttribute('muted',''); nsVid.setAttribute('aria-hidden','true');
+      nsVid.muted=true; nsVid.loop=true; nsVid.disablePictureInPicture=true;
+      nsVid.style.cssText='position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.01;pointer-events:none';
+      nsVid.src='data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMvbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAll0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAHRbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABfG1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAATxzdGJsAAAAvHN0c2QAAAAAAAAAAQAAAKxhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAMmF2Y0MBZAAK/+EAF2dkAAqs2V7ARAAAAwAEAAADABA8SJZYAQAEaO+8sP34+AAAAAAQcGFzcAAAAAEAAAABAAAAFGJ0cnQAAAAAAAAW6AAAFugAAAAYc3R0cwAAAAAAAAABAAAAAgAAIAAAAAAUc3RzcwAAAAAAAAABAAAAAQAAABxzdHNjAAAAAAAAAAEAAAABAAAAAgAAAAEAAAAcc3RzegAAAAAAAAAAAAAAAgAAAtEAAAAMAAAAFHN0Y28AAAAAAAAAAQAAA18AAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMAAAAAhmcmVlAAAC5W1kYXQAAAK3BgX//7PcRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MSByZWY9MSBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgzOjB4MyBtZT1oZXggc3VibWU9MiBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0wIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MCA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0wIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgc3RpdGNoYWJsZT0xIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTEga2V5aW50PTI1MCBrZXlpbnRfbWluPTIgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD0xMCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAASZYiEABf/6P/CVT+7wN1wT//hAAAACEGaIRiCv/7g';
+      document.body.appendChild(nsVid);
+    }
+    if(nsVid.paused){ const p=nsVid.play(); if(p&&p.catch) p.catch(()=>{}); }
+  }catch(e){}
+}
+function nsStop(){ try{ if(nsVid&&!nsVid.paused) nsVid.pause(); }catch(e){} }
+async function syncWake(){
+  const want=S.settings.keepAwake!==false&&document.visibilityState==='visible';
+  if(want) nsStart(); else nsStop();
+  try{
+    if(want&&wakeOk()&&!wakeLock){
       const l=await navigator.wakeLock.request('screen'); wakeLock=l;
       l.addEventListener('release',()=>{ if(wakeLock===l) wakeLock=null; });
     }else if(!want&&wakeLock){ const l=wakeLock; wakeLock=null; await l.release(); }
   }catch(e){ wakeLock=null; }
 }
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') syncWake(); });
-['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ if(!wakeLock) syncWake(); },{passive:true}));
+document.addEventListener('visibilitychange',()=>{ syncWake(); });
+['pointerdown','touchend','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ if(!wakeLock||(nsVid&&nsVid.paused)) syncWake(); },{passive:true}));
 setTimeout(()=>syncWake(),600);
 function renderWakeUI(){
   const on=S.settings.keepAwake!==false;
   $$('#wakeChips button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.w==='1')===on)));
-  $('#wakeHint').textContent=wakeOk()?(on?'Layar tidak akan mati sendiri selama dashboard ini terbuka. Kalau kamu mengunci layar dengan tombol samping, suara tetap berhenti.':'Layar akan mengikuti pengaturan Auto-Lock perangkat.'):'Browser ini belum mendukung fitur ini. Atur Auto-Lock perangkat ke "Never" selama mendengarkan.';
+  $('#wakeHint').textContent=on?'Layar tidak akan mati sendiri selama dashboard ini terbuka. Kalau kamu mengunci layar dengan tombol samping, suara tetap berhenti.':'Layar akan mengikuti pengaturan Auto-Lock perangkat.';
 }
 
 /* =================== reader view =================== */
