@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pustaka Dengar — EPUB & PDF jadi audiobook</title>
+<script src="firebase-config.js"></script>
+<script>
+try{
+  if(/[?&]local=1/.test(location.search)) sessionStorage.setItem('pd.local','1');
+  var fc=window.FIREBASE_CONFIG;
+  if(fc&&fc.apiKey&&!/^ISI_/.test(fc.apiKey)&&sessionStorage.getItem('pd.local')!=='1'&&!window.claude) document.documentElement.setAttribute('data-gate','1');
+}catch(e){}
+</script>
+<style>html[data-gate] .app{visibility:hidden}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Syne:wght@400;600;800&family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<style>
+:root{
+  --bg:#f3eee4; --panel:#ece6d9; --card:#faf7f0; --ink:#211d17; --muted:#756c5e; --line:#d8cfbd;
+  --accent:#b4472a; --accent-ink:#fff; --hl:#f3d9a4; --ok:#3c7a4a;
+  --ui:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --read:'Newsreader',Georgia,'Times New Roman',serif; --fs:21px;
+}
+[data-theme="dark"]{
+  --bg:#15130f; --panel:#1b1914; --card:#221f19; --ink:#e9e2d3; --muted:#9b9282; --line:#38342b;
+  --accent:#e48a68; --accent-ink:#1a0f0a; --hl:#4b3b1c; --ok:#7fc08d;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent}
+button{touch-action:manipulation}
+input[type=text],input[type=search],input[type=number],select{font-size:16px}
+.reader,.panel{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:15px;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.app{display:grid;grid-template-columns:340px minmax(0,1fr);height:100vh;height:100dvh;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+
+/* ---------- sidebar ---------- */
+.side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;padding:calc(18px + env(safe-area-inset-top)) 18px 10px}
+.brand .mark{width:34px;height:34px;border-radius:10px;background:var(--ink);color:var(--bg);display:grid;place-items:center}
+.brand h1{font-family:var(--read);font-size:21px;font-weight:500;margin:0;flex:1;letter-spacing:-.01em}
+.tabs{display:flex;gap:2px;padding:6px 12px 0;border-bottom:1px solid var(--line)}
+.tab{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:10px 4px;font-size:13px;font-weight:500;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .n{font-size:11px;background:var(--line);border-radius:9px;padding:1px 6px;margin-left:3px}
+.panel{flex:1;min-height:0;overflow:auto;padding:14px 14px calc(24px + env(safe-area-inset-bottom))}
+.panel[hidden]{display:none}
+.ib{width:40px;height:40px;border-radius:12px;border:1px solid transparent;background:transparent;display:inline-grid;place-items:center;flex:none}
+.ib:hover{background:var(--line)}
+.ib.on{color:var(--accent)}
+.ib:focus-visible,.btn:focus-visible,.tab:focus-visible,.chip:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 14px;font-weight:500;display:inline-flex;gap:8px;align-items:center;justify-content:center}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.block{width:100%}
+.drop{border:1.5px dashed var(--muted);border-radius:16px;padding:18px 14px;text-align:center;color:var(--muted);margin-bottom:14px;transition:.15s}
+.drop.over{background:var(--hl);border-color:var(--accent);color:var(--ink)}
+.drop p{margin:0 0 10px;font-size:13px}
+.sync{font-size:12.5px;color:var(--muted);line-height:1.4;margin:0 0 12px;display:flex;gap:8px;align-items:flex-start}
+.sync::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--muted)}
+.sync[data-s="on"]::before{background:var(--ok)}
+.sync[data-s="warn"]::before{background:var(--accent)}
+.tag.cloud{border-color:var(--accent);color:var(--accent)}
+.book .cont{grid-column:1/3;font-size:12.5px;color:var(--muted)}
+.status{border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px;background:var(--card);border:1px solid var(--line)}
+.status.err{border-color:var(--accent);color:var(--accent)}
+.bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:8px}
+.bar>i{display:block;height:100%;background:var(--accent);width:0}
+.book{display:grid;grid-template-columns:1fr auto;gap:4px 8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 12px 12px 14px;margin-bottom:10px;cursor:pointer;text-align:left;width:100%}
+.book:hover{border-color:var(--muted)}
+.book.active{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.book .t{font-family:var(--read);font-size:17px;line-height:1.25;font-weight:500;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.book .a{font-size:12.5px;color:var(--muted);grid-column:1}
+.book .m{font-size:12px;color:var(--muted);grid-column:1/3;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag{font-size:10.5px;font-weight:600;letter-spacing:.05em;border:1px solid var(--line);border-radius:6px;padding:1px 5px}
+.book .bar{grid-column:1/3}
+.del{grid-row:1/3;grid-column:2;align-self:start;font-size:12px;border:0;background:none;color:var(--muted);padding:4px 6px;border-radius:8px}
+.del:hover{background:var(--line);color:var(--accent)}
+.empty{color:var(--muted);font-size:13.5px;line-height:1.5;padding:6px 2px}
+.row{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 4px;border-radius:0}
+.row:hover{background:var(--card)}
+.row.cur{box-shadow:inset 3px 0 0 var(--accent);background:var(--card);padding-left:12px}
+.row .rt{font-size:14px;line-height:1.35}
+.row .rs{font-size:12px;color:var(--muted);margin-top:2px}
+.bmrow{border-bottom:1px solid var(--line);padding:10px 2px}
+.bmrow .bt{display:flex;align-items:center;gap:6px}
+.bmrow .go{flex:1;text-align:left;background:none;border:0;padding:4px 2px;min-width:0}
+.bmrow .snip{font-family:var(--read);font-size:15px;line-height:1.4;margin-top:2px;color:var(--ink)}
+.bmrow input{width:100%;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:6px}
+.search{width:100%;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 12px;margin-bottom:10px}
+mark{background:var(--hl);color:inherit;border-radius:3px;padding:0 1px}
+
+/* ---------- main ---------- */
+.main{display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+.top{display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
+.top .menu{display:none}
+.top .ttl{min-width:0;flex:1}
+.top .ttl b{font-family:var(--read);font-size:17px;font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .ttl span{font-size:12.5px;color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pct{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.reader{flex:1;min-height:0;overflow:auto;padding:28px 22px 40px;scroll-behavior:smooth}
+.page{max-width:36em;margin:0 auto;font-family:var(--read);font-size:var(--fs);line-height:1.7}
+.page p{margin:0 0 1.05em;text-wrap:pretty}
+.page .u{cursor:pointer;border-radius:4px;-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:1px 0}
+.page .u:hover{background:color-mix(in srgb,var(--hl) 45%,transparent)}
+.page .u.cur{background:var(--hl)}
+.page .u.bm{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:5px}
+.pghead{max-width:36em;margin:0 auto 18px;font-family:var(--ui);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:10px}
+.blank{color:var(--muted);font-family:var(--ui);font-size:14px;text-align:center;padding:60px 0}
+.hero{margin:auto;max-width:520px;padding:30px 24px;text-align:center}
+.hero h2{font-family:var(--read);font-weight:500;font-size:34px;line-height:1.15;margin:0 0 10px;letter-spacing:-.015em}
+.hero p{color:var(--muted);line-height:1.55;margin:0 0 22px}
+.hero ul{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:8px;text-align:left;color:var(--muted);font-size:13.5px}
+.hero li::before{content:"";display:inline-block;width:6px;height:6px;background:var(--accent);border-radius:50%;margin-right:10px;vertical-align:middle}
+.hero .drop{margin:0}
+
+/* ---------- player ---------- */
+.player{border-top:1px solid var(--line);background:var(--panel);padding:10px 16px calc(12px + env(safe-area-inset-bottom));position:relative}
+.pline{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.pline input[type=range]{flex:1}
+.pline .goto{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.pline .goto input{width:62px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:5px 7px}
+.ctrls{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px}
+.xport{display:flex;align-items:center;justify-content:center;gap:4px}
+.big{width:58px;height:58px;border-radius:50%;background:var(--accent);color:var(--accent-ink);border:0;display:grid;place-items:center;margin:0 6px;flex:none}
+.big:hover{filter:brightness(1.06)}
+.tempo{display:flex;align-items:center;gap:6px;font-size:13px}
+.tempo input{width:130px}
+.tempo b{min-width:44px;font-weight:600;font-variant-numeric:tabular-nums}
+.tools{display:flex;gap:2px;justify-content:flex-end}
+input[type=range]{accent-color:var(--accent);height:28px}
+.sheet{position:absolute;right:12px;bottom:100%;margin-bottom:8px;width:min(400px,calc(100% - 24px));max-height:min(70vh,560px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.22);padding:16px;z-index:20}
+.sheet[hidden]{display:none}
+.sheet h3{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.sheet section{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.sheet section:last-child{border:0;margin:0;padding:0}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:10px}
+.seg button{border:0;background:none;padding:10px 6px;font-weight:500;border-right:1px solid var(--line)}
+.seg button:last-child{border:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.sheet select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;margin-bottom:8px}
+.sheet .lbl{display:flex;justify-content:space-between;font-size:13px;margin:8px 0 0}
+.sheet input[type=range]{width:100%}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.45;margin:6px 0 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:7px 12px;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:13.5px;z-index:50;max-width:88vw;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.scrim{display:none}
+.banner{background:var(--hl);padding:8px 16px;font-size:13px;border-bottom:1px solid var(--line)}
+.banner[hidden]{display:none}
+
+@media (max-width:980px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;bottom:0;width:min(380px,90vw);z-index:40;transform:translateX(-102%);transition:transform .22s;box-shadow:0 0 40px rgba(0,0,0,.25)}
+  .side.open{transform:none}
+  .scrim.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:35}
+  .top .menu{display:inline-grid}
+  .ib{width:44px;height:44px}
+  .top{padding:calc(8px + env(safe-area-inset-top)) 10px 8px}
+  .reader{padding:18px 18px 28px}
+  .hero h2{font-size:28px}
+  .player{padding:8px 12px calc(10px + env(safe-area-inset-bottom))}
+  .pline{margin-bottom:4px;gap:10px}
+  .pline input[type=range]{height:36px}
+  .pline .goto span{display:none}
+  .pline .goto input{width:56px}
+  .ctrls{grid-template-columns:minmax(0,1fr) auto;gap:2px 8px}
+  .xport{justify-content:flex-start;gap:0;min-width:0}
+  .big{width:56px;height:56px;margin:0 4px}
+  .tempo{grid-column:1/3;order:3;justify-content:center;gap:2px}
+  .tempo input{display:none}
+  .tempo b{min-width:60px;text-align:center}
+  .tempo .ib{width:44px;height:36px;font-size:22px}
+  .sheet{right:8px;left:8px;width:auto;max-height:68vh;max-height:68dvh}
+  .toast{bottom:calc(176px + env(safe-area-inset-bottom))}
+}
+@media (max-width:380px){
+  .ib{width:38px}
+  .big{width:52px;height:52px;margin:0 2px}
+  .reader{padding:16px 14px 24px}
+}
+@media (max-height:500px) and (max-width:980px){
+  .pline,.tempo{display:none}
+  .reader{padding:12px 28px 20px}
+  .hero{padding:8px 20px}
+  .hero ul{display:none}
+  .toast{bottom:90px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+<style id="skin">
+/* ===== kulit: seragam dengan landing page ===== */
+:root{
+  --bg:#fff; --panel:#fff; --card:#fff; --ink:#111; --muted:#5b5b5b; --line:#dedede; --edge:#111;
+  --accent:#111; --accent-ink:#fff; --hl:#e9f27a; --ok:#2f7d46;
+  --lime:#d6e52c; --kraft:#efe9d8; --sky:#a9cfee; --rust:#b4472a;
+  --disp:'Syne','Trebuchet MS',system-ui,sans-serif; --serif:'Instrument Serif',Georgia,serif;
+}
+[data-theme="dark"]{
+  --bg:#131313; --panel:#131313; --card:#1b1b1b; --ink:#f4f4f4; --muted:#a8a8a8; --line:#383838; --edge:#f4f4f4;
+  --accent:#d6e52c; --accent-ink:#111; --hl:#4d5517; --kraft:#26241c;
+}
+.side{border-right:1.5px solid var(--edge)}
+.brand{gap:12px}
+.brand .mark{width:38px;height:38px;border-radius:50%;background:var(--lime);color:#111;border:1.5px solid var(--edge)}
+.brand h1{font-family:var(--disp);font-size:22px;font-weight:600;letter-spacing:0;display:flex;flex-wrap:wrap;align-items:baseline}
+.qk span{display:inline-block;font-family:var(--disp);font-weight:600;line-height:1}
+.qk .w{display:inline-flex;align-items:baseline;white-space:nowrap}.qk .sp{width:.32em}.qk .sf{font-family:var(--serif);font-style:italic;font-weight:400}
+.ib:hover{background:var(--lime);color:#111}
+.ib.on{color:var(--rust)}
+.tabs{gap:6px;padding:10px 12px 12px;border-bottom:1.5px solid var(--edge)}
+.tab{border:1.5px solid var(--edge);border-radius:999px;padding:8px 2px;font:600 11.5px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:var(--ink);background:var(--bg);transition:transform .15s}
+.tab:nth-child(odd){transform:rotate(-1.6deg)}.tab:nth-child(even){transform:rotate(1.4deg)}
+.tab:hover{transform:rotate(0)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--edge)}
+.tab .n{background:var(--lime);color:#111}
+.btn{border:1.5px solid var(--edge);border-radius:999px;font-weight:600;background:var(--bg)}
+.btn:hover{background:var(--lime);color:#111;border-color:var(--edge)}
+.btn.primary{background:var(--lime);color:#111;border-color:var(--edge);box-shadow:3px 3px 0 var(--edge)}
+.btn.primary:hover{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--edge)}
+.drop{border:1.5px dashed var(--edge);border-radius:6px;background:var(--kraft);color:var(--ink)}
+.drop.over{background:var(--lime);border-color:var(--edge);color:#111}
+.status{border:1.5px solid var(--edge);border-radius:4px;background:var(--bg)}
+.status.err{border-color:var(--rust);color:var(--rust)}
+.bar{height:7px;border-radius:0;border:1.2px solid var(--edge);background:var(--bg)}
+.bar>i{background:var(--rust)}
+.book{border:1.5px solid var(--edge);border-radius:2px;background:var(--bg);box-shadow:4px 4px 0 var(--edge);transition:transform .15s}
+.book:nth-child(3n+1){background:var(--kraft);transform:rotate(-.5deg)}
+.book:nth-child(3n+2){transform:rotate(.4deg)}
+.book:nth-child(3n){background:var(--sky);color:#111;transform:rotate(-.3deg)}
+.book:nth-child(3n) .a,.book:nth-child(3n) .m,.book:nth-child(3n) .cont{color:#333}
+.book:hover{transform:rotate(0) translate(1px,1px);box-shadow:3px 3px 0 var(--edge);border-color:var(--edge)}
+.book.active{background:var(--lime);color:#111;border-color:var(--edge);box-shadow:4px 4px 0 var(--rust)}
+.book.active .a,.book.active .m,.book.active .cont{color:#222}
+.book .t{font-family:var(--disp);font-weight:800;font-size:15px;line-height:1.2}
+.tag{border:1.3px solid currentColor;border-radius:999px;padding:1px 7px}
+.tag.cloud{border-color:var(--rust);color:var(--rust)}
+.del:hover{background:var(--ink);color:var(--bg)}
+.row.cur{box-shadow:inset 5px 0 0 var(--ink);background:var(--lime);color:#111}
+.row.cur .rs{color:#333}
+.row:hover{background:var(--kraft)}
+.search,.bmrow input,.pline .goto input,.sheet select{border:1.5px solid var(--edge);border-radius:999px;background:var(--bg)}
+.bmrow input{padding:8px 14px}
+.main{background:var(--bg)}
+.top{border-bottom:1.5px solid var(--edge)}
+.top .ttl b{font-family:var(--disp);font-weight:800;font-size:16px}
+.pct{font:600 12px/1 var(--disp);border:1.3px solid var(--edge);border-radius:999px;padding:6px 10px}
+.pct:empty{display:none}
+.banner{background:var(--lime);color:#111;border-bottom:1.5px solid var(--edge)}
+.pghead{font-family:var(--disp);font-weight:600;border-bottom:1.5px solid var(--edge);padding-bottom:8px}
+.page .u.bm{text-decoration-color:var(--rust)}
+.page .u.cur{background:var(--hl)}
+.hero{position:relative;max-width:640px}
+.hero h2{font-size:clamp(36px,5.2vw,62px);line-height:1;margin:6px 0 16px;display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;letter-spacing:0;font-weight:600}
+.hero p{color:var(--ink)}
+.hero .drop{background:none;border:0}
+.hero ul li::before{background:var(--rust);border-radius:0;transform:rotate(45deg)}
+.hs{position:absolute;pointer-events:none;filter:drop-shadow(0 8px 10px rgba(0,0,0,.12));animation:bob 7s ease-in-out infinite;animation-delay:var(--d,0s);transform:rotate(var(--r,0deg))}
+.hs svg{display:block;width:100%;height:auto}
+.hs1{left:-120px;bottom:40px;width:84px;--r:-6deg}
+.hs2{right:-120px;top:30px;width:110px;--r:7deg}
+.hs3{right:-90px;bottom:50px;width:76px;--r:0deg;--d:-2s}
+.hs4{left:-150px;top:30px;width:130px;--r:-9deg;--d:-4s}
+.hrow{display:none}
+@keyframes bob{0%,100%{translate:0 0}50%{translate:0 -8px}}
+@media (max-width:1180px){.hs{display:none}.hrow{display:flex;justify-content:center;align-items:flex-end;gap:18px;margin-top:26px}.hrow svg{width:64px;height:auto;display:block;transform:rotate(var(--r,0deg));filter:drop-shadow(0 6px 8px rgba(0,0,0,.12))}.hrow svg:nth-child(1){width:50px}.hrow svg:nth-child(2){width:92px}.hrow svg:nth-child(3){width:60px}}
+.sideorn{display:flex;justify-content:center;align-items:flex-end;gap:14px;margin:22px 0 4px;opacity:.95}
+.sideorn svg{width:62px;height:auto;display:block;transform:rotate(var(--r,0deg));filter:drop-shadow(0 6px 8px rgba(0,0,0,.14))}
+.sideorn svg:nth-child(2){width:78px}
+.sideorn svg:nth-child(3){width:78px}
+.player{border-top:1.5px solid var(--edge);background:var(--bg)}
+.pline{font-family:var(--disp);font-weight:600;font-size:12px}
+.big{background:var(--ink);color:var(--bg);box-shadow:3px 3px 0 var(--rust)}
+.big:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--rust)}
+.tempo b{font-family:var(--disp)}
+.sheet{border:1.5px solid var(--edge);border-radius:4px;background:var(--bg);box-shadow:7px 7px 0 var(--edge)}
+.sheet h3{font:600 12px/1 var(--disp);color:var(--ink);letter-spacing:.06em}
+.seg{border:1.5px solid var(--edge);border-radius:999px}
+.seg button{border-right:1.5px solid var(--edge);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chip{border:1.5px solid var(--edge);background:var(--bg);font-weight:600}
+.chip[aria-pressed="true"]{background:var(--lime);color:#111;border-color:var(--edge)}
+.toast{border-radius:999px;border:1.5px solid var(--edge);background:var(--ink);color:var(--bg)}
+.side{box-shadow:none}
+@media (max-width:980px){.side{border-right:1.5px solid var(--edge);box-shadow:8px 0 0 rgba(0,0,0,.08)}.hero h2{font-size:clamp(38px,12vw,64px)}}
+@media (prefers-reduced-motion:reduce){.hs{animation:none}}
+</style>
+</head>
+<body>
+<!--SPRITE--><svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<pattern id="chk" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#fff"/><rect width="8" height="8" fill="#111"/><rect x="8" y="8" width="8" height="8" fill="#111"/></pattern>
+<linearGradient id="gMetal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fafbfd"/><stop offset=".5" stop-color="#c3c9d3"/><stop offset="1" stop-color="#8b929d"/></linearGradient>
+<linearGradient id="gMetalH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f9"/><stop offset=".5" stop-color="#b9c0ca"/><stop offset="1" stop-color="#7f8691"/></linearGradient>
+<radialGradient id="gSphere" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient>
+<linearGradient id="gGlass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset=".25" stop-color="#dcecf5" stop-opacity=".35"/><stop offset=".8" stop-color="#cfe3ee" stop-opacity=".3"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></linearGradient>
+<linearGradient id="gWater" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdeefa"/><stop offset="1" stop-color="#7db9de"/></linearGradient>
+<linearGradient id="gFish" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#e4521b"/></linearGradient>
+<linearGradient id="gYel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffdc4a"/><stop offset="1" stop-color="#ee9f00"/></linearGradient>
+<linearGradient id="gMilk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#dfe6ec"/></linearGradient>
+<linearGradient id="gPink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8fc2"/><stop offset="1" stop-color="#e23c86"/></linearGradient>
+<linearGradient id="gLime" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8f751"/><stop offset="1" stop-color="#6fd11e"/></linearGradient>
+<linearGradient id="gTeal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9ff0e0"/><stop offset="1" stop-color="#1fae9f"/></linearGradient>
+<linearGradient id="gFur" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cf9150"/><stop offset="1" stop-color="#8a5526"/></linearGradient>
+<linearGradient id="gCar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7e3da"/><stop offset="1" stop-color="#c5c0b4"/></linearGradient>
+<linearGradient id="gCh" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe985"/><stop offset="1" stop-color="#f1b92b"/></linearGradient>
+
+<symbol id="o-bowl" viewBox="0 0 160 150">
+<path id="bwShape" d="M40 30C14 44 8 82 24 108C38 130 62 142 80 142C98 142 122 130 136 108C152 82 146 44 120 30Z" fill="url(#gWater)"/>
+<path d="M26 108C40 126 62 134 80 134S120 126 134 108C128 100 110 98 80 98S32 100 26 108Z" fill="#2d6fc9"/>
+<g fill="#6fa6ee"><circle cx="46" cy="116" r="2.6"/><circle cx="64" cy="122" r="2.6"/><circle cx="86" cy="124" r="2.6"/><circle cx="106" cy="120" r="2.6"/><circle cx="122" cy="112" r="2.6"/><circle cx="76" cy="110" r="2.6"/></g>
+<g fill="#3a9a49"><path d="M50 112C42 90 46 70 54 58C56 76 56 94 58 112Z"/><path d="M60 112C60 92 66 76 76 66C74 84 72 98 68 112Z"/><path d="M42 112C34 98 36 84 40 74C44 86 46 100 48 112Z" fill="#2c7f3a"/></g>
+<path d="M114 80C110 70 94 68 84 76C92 86 108 90 114 80Z" fill="url(#gFish)"/><path d="M112 78L130 66C132 74 132 82 128 90Z" fill="#e8601d"/><circle cx="92" cy="76" r="2.2" fill="#222"/><path d="M96 70C100 66 106 66 108 70" stroke="#c63d0d" fill="none" stroke-width="1.5"/>
+<path d="M40 30C14 44 8 82 24 108C38 130 62 142 80 142C98 142 122 130 136 108C152 82 146 44 120 30Z" fill="url(#gGlass)" stroke="#8db7cc" stroke-width="1.6"/>
+<ellipse cx="80" cy="30" rx="40" ry="8" fill="#fff" fill-opacity=".55" stroke="#8db7cc" stroke-width="1.6"/>
+<path d="M24 62C20 78 22 94 30 106" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".85"/><path d="M128 54C136 66 138 82 134 94" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/></symbol>
+
+<symbol id="o-phone" viewBox="0 0 190 130">
+<g fill="none" stroke="#d3262f" stroke-width="3.4"><ellipse cx="24" cy="52" rx="14" ry="4.5"/><ellipse cx="24" cy="60" rx="14" ry="4.5"/><ellipse cx="24" cy="68" rx="14" ry="4.5"/><ellipse cx="24" cy="76" rx="14" ry="4.5"/><ellipse cx="24" cy="84" rx="14" ry="4.5"/><ellipse cx="24" cy="92" rx="14" ry="4.5"/><ellipse cx="24" cy="100" rx="14" ry="4.5"/></g>
+<path d="M46 122L60 62H152L168 122Z" fill="#e8ecf6" fill-opacity=".92" stroke="#a9b3c9" stroke-width="1.6"/>
+<path d="M36 40C36 26 48 22 62 22H150C164 22 176 26 176 40V46C176 53 172 55 166 55H46C40 55 36 53 36 46Z" fill="#f1f4fa" stroke="#a9b3c9" stroke-width="1.6"/>
+<rect x="36" y="26" width="18" height="29" rx="8" fill="#d3262f"/><rect x="158" y="26" width="18" height="29" rx="8" fill="#d3262f"/><rect x="62" y="30" width="86" height="6" rx="3" fill="#fff" opacity=".8"/>
+<rect x="74" y="70" width="64" height="42" rx="5" fill="#c9d1e4"/>
+<g><circle cx="86" cy="79" r="4.4" fill="#2b6fd6"/><circle cx="106" cy="79" r="4.4" fill="#2fb36b"/><circle cx="126" cy="79" r="4.4" fill="#2b6fd6"/><circle cx="86" cy="90" r="4.4" fill="#2fb36b"/><circle cx="106" cy="90" r="4.4" fill="#2b6fd6"/><circle cx="126" cy="90" r="4.4" fill="#2fb36b"/><circle cx="86" cy="101" r="4.4" fill="#2b6fd6"/><circle cx="106" cy="101" r="4.4" fill="#2fb36b"/><circle cx="126" cy="101" r="4.4" fill="#2b6fd6"/></g>
+<path d="M54 118L64 72" stroke="#fff" stroke-width="3" opacity=".6" stroke-linecap="round"/></symbol>
+
+<symbol id="o-camera" viewBox="0 0 150 100">
+<rect x="6" y="16" width="138" height="78" rx="12" fill="url(#gYel)"/><path d="M6 60H144V82C144 89 139 94 132 94H18C11 94 6 89 6 82Z" fill="#d6372b"/>
+<rect x="22" y="32" width="106" height="52" rx="9" fill="#1d1d22"/><circle cx="75" cy="58" r="22" fill="#2b2b32" stroke="#6b6b74" stroke-width="2.5"/><circle cx="75" cy="58" r="15" fill="#0c1020"/><circle cx="75" cy="58" r="8" fill="#1e2f66"/><circle cx="69" cy="52" r="3.4" fill="#fff" opacity=".85"/>
+<rect x="24" y="20" width="24" height="10" rx="3" fill="#2a2a30"/><rect x="104" y="20" width="26" height="10" rx="3" fill="#fff" stroke="#bbb"/><circle cx="116" cy="12" r="8" fill="#9aa0aa" stroke="#6d737d" stroke-width="1.5"/><circle cx="32" cy="12" r="5" fill="#d6372b" stroke="#8f1f17" stroke-width="1"/>
+<rect x="104" y="72" width="30" height="8" rx="2" fill="#fff" opacity=".9"/><path d="M12 24C12 20 15 18 19 18H60" stroke="#fff" stroke-width="3" fill="none" opacity=".5" stroke-linecap="round"/></symbol>
+
+<symbol id="o-salt" viewBox="0 0 70 120">
+<rect x="10" y="38" width="50" height="76" rx="9" fill="url(#gGlass)" stroke="#9db8c6" stroke-width="1.5"/><rect x="13" y="62" width="44" height="49" rx="7" fill="#fff"/>
+<path d="M11 38V30C11 15 21 6 35 6S59 15 59 30V38Z" fill="url(#gMetalH)" stroke="#7f8691" stroke-width="1.3"/>
+<g fill="#6d737d"><circle cx="28" cy="18" r="1.8"/><circle cx="35" cy="14" r="1.8"/><circle cx="42" cy="18" r="1.8"/><circle cx="35" cy="24" r="1.8"/></g><path d="M16 46V108" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".85"/></symbol>
+
+<symbol id="o-cheese" viewBox="0 0 150 92">
+<path d="M6 52L118 8L144 30L32 68Z" fill="#ffe98a"/><path d="M32 68L144 30V56L32 88Z" fill="url(#gCh)"/><path d="M6 52L32 68V88L6 70Z" fill="#e3ab25"/>
+<g fill="#e0a722"><ellipse cx="60" cy="44" rx="7" ry="4" transform="rotate(-20 60 44)"/><ellipse cx="100" cy="28" rx="5" ry="3" transform="rotate(-20 100 28)"/><ellipse cx="80" cy="66" rx="7" ry="5"/><ellipse cx="116" cy="52" rx="5" ry="4"/><ellipse cx="46" cy="76" rx="4" ry="5"/></g></symbol>
+
+<symbol id="o-mug" viewBox="0 0 140 140">
+<g stroke="#111" stroke-width="2.4" stroke-linecap="round"><path d="M32 30l-4-22M46 30l2-26M60 30l8-20" fill="none" stroke-width="3.4"/></g><circle cx="28" cy="8" r="4.5" fill="#d6372b"/><circle cx="48" cy="4" r="4.5" fill="#ffd23a"/><circle cx="68" cy="10" r="4.5" fill="#4aa3e8"/>
+<path d="M98 54h18a14 14 0 010 40H98" fill="none" stroke="#fff" stroke-width="11"/><path d="M98 54h18a14 14 0 010 40H98" fill="none" stroke="#111" stroke-width="2.4"/>
+<path d="M20 30h86v72a18 18 0 01-18 18H38a18 18 0 01-18-18z" fill="url(#chk)" stroke="#111" stroke-width="2.4" stroke-linejoin="round"/>
+<path d="M20 30h86v72a18 18 0 01-18 18H38a18 18 0 01-18-18z" fill="url(#gGlass)" opacity=".35"/><ellipse cx="63" cy="30" rx="43" ry="7" fill="#fff" stroke="#111" stroke-width="2.4"/></symbol>
+
+<symbol id="o-pager" viewBox="0 0 120 100">
+<rect x="6" y="10" width="108" height="80" rx="12" fill="url(#gLime)" stroke="#4aa312" stroke-width="1.5"/><rect x="18" y="20" width="84" height="32" rx="5" fill="#2b2f2a"/><rect x="22" y="24" width="76" height="24" rx="3" fill="#a8b79a"/>
+<text x="60" y="42" text-anchor="middle" font-family="Syne,sans-serif" font-weight="800" font-size="14" fill="#2b2f2a">12:30</text>
+<g fill="#3d8f12"><rect x="22" y="62" width="22" height="12" rx="6"/><rect x="49" y="62" width="22" height="12" rx="6"/><rect x="76" y="62" width="22" height="12" rx="6"/></g><path d="M12 16C12 13 14 12 17 12H70" stroke="#fff" stroke-width="3" opacity=".6" fill="none" stroke-linecap="round"/><rect x="30" y="80" width="60" height="5" rx="2.5" fill="#4aa312" opacity=".6"/></symbol>
+
+<symbol id="o-jug" viewBox="0 0 122 140">
+<path d="M86 52C112 50 114 96 86 100" fill="none" stroke="#c9dbe6" stroke-width="8" stroke-linecap="round"/><path d="M86 52C112 50 114 96 86 100" fill="none" stroke="#fff" stroke-width="2" opacity=".8"/>
+<path d="M32 18H74C80 18 84 14 90 14L92 22C86 26 84 32 84 42V116C84 126 77 132 67 132H47C37 132 30 126 30 116V42C30 32 28 26 32 18Z" fill="#eef5f9" fill-opacity=".5" stroke="#9db8c6" stroke-width="1.6"/>
+<path d="M31 62H83V116C83 125 77 131 67 131H47C37 131 31 125 31 116Z" fill="url(#gMilk)"/><path d="M31 62C45 58 60 66 83 61" stroke="#fff" stroke-width="2" fill="none"/>
+<path d="M38 24V116" stroke="#fff" stroke-width="4.5" stroke-linecap="round" opacity=".85"/></symbol>
+
+<symbol id="o-butter" viewBox="0 0 176 104">
+<path d="M10 68H166L150 96H26Z" fill="#70757c"/><path d="M10 68H166L162 74H14Z" fill="#9aa0a8"/>
+<path d="M24 48H128V72H24Z" fill="#f4d760"/><path d="M24 48L50 34H154L128 48Z" fill="#ffeb94"/><path d="M128 48L154 34V58L128 72Z" fill="#e6bf36"/>
+<path d="M58 44L150 12L154 18L72 54Z" fill="url(#gMetal)" stroke="#8b929d" stroke-width="1"/><path d="M150 12L170 6L172 12L154 18Z" fill="#c9ced6"/></symbol>
+
+<symbol id="o-eggs" viewBox="0 0 150 112">
+<path d="M12 58L40 30H112L140 58V94C140 100 136 104 130 104H22C16 104 12 100 12 94Z" fill="url(#gCar)" stroke="#b1ab9e" stroke-width="1.5"/>
+<path d="M12 58H140V72H12Z" fill="#cfcabd"/><path d="M62 30V58M90 30V58" stroke="#b1ab9e" stroke-width="1.2"/>
+<text x="76" y="52" text-anchor="middle" font-family="Syne,sans-serif" font-weight="600" font-size="9" letter-spacing="2" fill="#8d877a">1 2 3 4 5 6</text>
+<rect x="64" y="72" width="22" height="9" rx="3" fill="#bdb7aa"/><path d="M18 62H132" stroke="#fff" stroke-width="2" opacity=".5"/></symbol>
+
+<symbol id="o-bear" viewBox="0 0 110 170">
+<rect x="30" y="112" width="20" height="46" rx="7" fill="#4b78a8"/><rect x="60" y="112" width="20" height="46" rx="7" fill="#4b78a8"/><ellipse cx="40" cy="160" rx="14" ry="7" fill="url(#gFur)"/><ellipse cx="70" cy="160" rx="14" ry="7" fill="url(#gFur)"/>
+<rect x="26" y="96" width="58" height="26" rx="8" fill="#5a89bb"/><rect x="28" y="72" width="54" height="34" rx="12" fill="#f6f6f3"/><path d="M34 100H76" stroke="#3a628e" stroke-width="3"/>
+<ellipse cx="24" cy="86" rx="9" ry="14" fill="url(#gFur)" transform="rotate(20 24 86)"/><ellipse cx="86" cy="86" rx="9" ry="14" fill="url(#gFur)" transform="rotate(-20 86 86)"/>
+<ellipse cx="55" cy="88" rx="30" ry="8" fill="url(#gFur)" transform="rotate(-6 55 88)"/><rect x="73" y="64" width="12" height="9" rx="2" fill="#d6372b"/>
+<circle cx="34" cy="22" r="10" fill="url(#gFur)"/><circle cx="76" cy="22" r="10" fill="url(#gFur)"/><circle cx="34" cy="22" r="5" fill="#e0b98a"/><circle cx="76" cy="22" r="5" fill="#e0b98a"/>
+<circle cx="55" cy="44" r="28" fill="url(#gFur)"/><ellipse cx="55" cy="55" rx="13" ry="10" fill="#e8c79c"/><ellipse cx="55" cy="50" rx="5" ry="3.6" fill="#2a1a10"/><path d="M55 54V58M48 60C52 64 58 64 62 60" stroke="#2a1a10" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<rect x="33" y="33" width="20" height="13" rx="5" fill="#111"/><rect x="57" y="33" width="20" height="13" rx="5" fill="#111"/><path d="M53 38H57" stroke="#111" stroke-width="2"/><path d="M36 36L44 36" stroke="#fff" stroke-width="2" opacity=".6" stroke-linecap="round"/></symbol>
+
+<symbol id="o-tin" viewBox="0 0 150 104">
+<rect x="6" y="12" width="138" height="82" rx="16" fill="url(#gMetal)" stroke="#7f8691" stroke-width="1.5"/>
+<rect x="20" y="26" width="110" height="54" rx="7" fill="#f4f3ef"/><path d="M34 54C46 40 70 38 92 46L110 40V68L92 62C70 70 46 68 34 54Z" fill="#9aa0a8"/><circle cx="46" cy="52" r="2" fill="#fff"/>
+<text x="75" y="36" text-anchor="middle" font-family="Syne,sans-serif" font-weight="800" font-size="10" letter-spacing="1" fill="#2b2f36">SARDEN</text><text x="75" y="76" text-anchor="middle" font-family="Syne,sans-serif" font-weight="600" font-size="8" fill="#555">100 g</text>
+<ellipse cx="124" cy="22" rx="9" ry="6" fill="none" stroke="#7f8691" stroke-width="2.4"/></symbol>
+
+<symbol id="o-gun" viewBox="0 0 150 112">
+<rect x="26" y="16" width="112" height="30" rx="12" fill="url(#gPink)"/><rect x="8" y="24" width="22" height="14" rx="4" fill="#e23c86"/><rect x="2" y="27" width="10" height="8" rx="3" fill="#b82569"/>
+<path d="M92 44H128L120 98C119 104 114 106 110 106H102C96 106 92 102 93 96Z" fill="url(#gPink)"/><path d="M58 46V70C58 78 66 80 74 76L84 70V46Z" fill="#e23c86"/><path d="M62 62C70 70 82 66 84 54" stroke="#b82569" stroke-width="3" fill="none"/>
+<path d="M40 22H120" stroke="#fff" stroke-width="4" opacity=".6" stroke-linecap="round"/><rect x="48" y="8" width="30" height="10" rx="5" fill="#ff8fc2"/></symbol>
+
+<symbol id="o-gummy" viewBox="0 0 90 112">
+<g fill="url(#gTeal)" opacity=".95"><circle cx="45" cy="28" r="18"/><circle cx="31" cy="15" r="8"/><circle cx="59" cy="15" r="8"/><ellipse cx="45" cy="68" rx="24" ry="28"/><ellipse cx="18" cy="60" rx="9" ry="16" transform="rotate(25 18 60)"/><ellipse cx="72" cy="60" rx="9" ry="16" transform="rotate(-25 72 60)"/><ellipse cx="32" cy="98" rx="11" ry="12"/><ellipse cx="58" cy="98" rx="11" ry="12"/></g>
+<g fill="#fff" opacity=".55"><ellipse cx="38" cy="22" rx="4" ry="7" transform="rotate(20 38 22)"/><ellipse cx="34" cy="62" rx="4" ry="14"/></g><circle cx="39" cy="30" r="2" fill="#0d6a60"/><circle cx="51" cy="30" r="2" fill="#0d6a60"/></symbol>
+
+<symbol id="o-ball" viewBox="0 0 110 110">
+<clipPath id="bcl"><circle cx="55" cy="55" r="50"/></clipPath><circle cx="55" cy="55" r="50" fill="#f4ecd0"/><rect clip-path="url(#bcl)" x="0" y="24" width="110" height="62" fill="#1f7b47"/>
+<circle cx="55" cy="55" r="22" fill="#fff"/><text x="55" y="64" text-anchor="middle" font-family="Syne,sans-serif" font-weight="800" font-size="26" fill="#111">14</text><circle cx="55" cy="55" r="50" fill="url(#gSphere)"/></symbol>
+
+<symbol id="o-key" viewBox="0 0 132 64">
+<path d="M34 25H122V37H114V49H104V37H96V45H86V37H34Z" fill="url(#gMetal)" stroke="#7f8691" stroke-width="1.4"/><circle cx="24" cy="31" r="20" fill="url(#gMetal)" stroke="#7f8691" stroke-width="1.4"/><circle cx="19" cy="31" r="6.5" fill="#fff" stroke="#9aa0aa"/><path d="M40 29H116" stroke="#fff" stroke-width="2" opacity=".8"/></symbol>
+
+<symbol id="o-clock" viewBox="0 0 130 140">
+<path d="M32 108L20 132M98 108L110 132" stroke="#8b929d" stroke-width="5" stroke-linecap="round"/>
+<circle cx="30" cy="26" r="17" fill="url(#gMetal)" stroke="#7f8691" stroke-width="1.4"/><circle cx="100" cy="26" r="17" fill="url(#gMetal)" stroke="#7f8691" stroke-width="1.4"/><path d="M65 8V20" stroke="#7f8691" stroke-width="4" stroke-linecap="round"/>
+<circle cx="65" cy="74" r="50" fill="url(#gMetal)" stroke="#7f8691" stroke-width="1.4"/><circle cx="65" cy="74" r="39" fill="#fff" stroke="#c9ced6" stroke-width="1.5"/>
+<g font-family="Syne,sans-serif" font-weight="600" font-size="12" fill="#222" text-anchor="middle"><text x="65" y="46">12</text><text x="94" y="79">3</text><text x="65" y="109">6</text><text x="36" y="79">9</text></g>
+<path d="M65 74V52M65 74L80 82" stroke="#222" stroke-width="3.4" stroke-linecap="round"/><path d="M65 74L56 50" stroke="#d6372b" stroke-width="1.8" stroke-linecap="round"/><circle cx="65" cy="74" r="3.6" fill="#222"/><path d="M34 60C40 46 52 40 62 38" stroke="#fff" stroke-width="3" fill="none" opacity=".8" stroke-linecap="round"/></symbol>
+
+<symbol id="o-ribbon" viewBox="0 0 54 90"><path d="M4 2h46v84L27 66 4 86z" fill="#b4472a" stroke="#111" stroke-width="2.4" stroke-linejoin="round"/></symbol>
+</defs></svg><!--/SPRITE-->
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand">
+      <div class="mark" data-icon="headphones"></div>
+      <h1 class="qk" id="brandH" data-text="Pustaka Dengar">Pustaka Dengar</h1>
+      <button class="ib" id="themeBtn" title="Ganti tema terang/gelap" aria-label="Ganti tema" data-icon="moon"></button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="lib" aria-selected="true">Pustaka<span class="n" id="nLib">0</span></button>
+      <button class="tab" role="tab" data-tab="toc" aria-selected="false">Bab</button>
+      <button class="tab" role="tab" data-tab="bm" aria-selected="false">Penanda<span class="n" id="nBm">0</span></button>
+      <button class="tab" role="tab" data-tab="find" aria-selected="false">Cari</button>
+    </div>
+    <section class="panel" id="p-lib" role="tabpanel">
+      <div class="sync" id="syncState" data-s="connecting">Menyambungkan ke akunmu…</div>
+      <button class="btn" id="logoutBtn" type="button" hidden style="margin-bottom:12px">Keluar dari akun</button>
+      <div id="importStatus"></div>
+      <div class="drop" id="drop">
+        <p>Tarik file <b>EPUB</b> atau <b>PDF</b> ke sini</p>
+        <button class="btn primary block" id="pick" type="button"><span data-icon="plus"></span>Tambah buku</button>
+      </div>
+      <div id="books"></div>
+      <div class="sideorn" aria-hidden="true"><svg viewBox="0 0 90 112" style="--r:-6deg"><use href="#o-gummy"/></svg><svg viewBox="0 0 130 140" style="--r:4deg"><use href="#o-clock"/></svg><svg viewBox="0 0 140 140" style="--r:-3deg"><use href="#o-mug"/></svg></div>
+    </section>
+    <section class="panel" id="p-toc" role="tabpanel" hidden></section>
+    <section class="panel" id="p-bm" role="tabpanel" hidden></section>
+    <section class="panel" id="p-find" role="tabpanel" hidden>
+      <input class="search" id="q" type="search" placeholder="Ketik kalimat yang kamu ingat…" aria-label="Cari teks di buku">
+      <div id="results"></div>
+    </section>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <div class="banner" id="banner" hidden></div>
+    <div class="top">
+      <button class="ib menu" id="menuBtn" title="Buka pustaka" aria-label="Buka pustaka" data-icon="menu"></button>
+      <div class="ttl"><b id="bTitle">Belum ada buku dibuka</b><span id="bSub">Tambah EPUB atau PDF untuk mulai</span></div>
+      <div class="pct" id="bPct"></div>
+    </div>
+    <div class="reader" id="reader">
+      <div class="hero" id="hero">
+        <span class="hs hs1" aria-hidden="true"><svg viewBox="0 0 110 170"><use href="#o-bear"/></svg></span>
+        <span class="hs hs2" aria-hidden="true"><svg viewBox="0 0 150 100"><use href="#o-camera"/></svg></span>
+        <span class="hs hs3" aria-hidden="true"><svg viewBox="0 0 110 110"><use href="#o-ball"/></svg></span>
+        <span class="hs hs4" aria-hidden="true"><svg viewBox="0 0 190 130"><use href="#o-phone"/></svg></span>
+        <h2 class="qk" id="heroH" data-text="Bukumu, dibacakan.">Bukumu, dibacakan.</h2>
+        <p>Masukkan file EPUB atau PDF, pilih suara yang paling nyaman buatmu, atur tempo, lalu dengarkan sambil mata istirahat. Posisi terakhir dan penanda tersimpan otomatis.</p>
+        <div class="drop" id="drop2"><button class="btn primary" id="pick2" type="button"><span data-icon="plus"></span>Pilih file buku</button></div>
+        <ul>
+          <li>Suara Claude membaca dalam Bahasa Indonesia. Kamu bisa pindah ke suara bawaan perangkat kapan saja.</li>
+          <li>Lupa sampai mana di Xteink? Cari satu kalimat dari bukunya, lalu lanjut dari situ.</li>
+          <li>Buku disimpan di browser ini saja, tidak diunggah ke mana pun.</li>
+        </ul>
+        <div class="hrow" aria-hidden="true"><svg viewBox="0 0 110 170" style="--r:-5deg"><use href="#o-bear"/></svg><svg viewBox="0 0 150 100" style="--r:4deg"><use href="#o-camera"/></svg><svg viewBox="0 0 110 110" style="--r:6deg"><use href="#o-ball"/></svg></div>
+      </div>
+      <div id="pageWrap" hidden>
+        <div class="pghead"><span id="phChap"></span><span id="phPage"></span></div>
+        <div class="page" id="page"></div>
+      </div>
+    </div>
+
+    <div class="player" id="player" hidden>
+      <div class="sheet" id="sheet" hidden role="dialog" aria-label="Pengaturan suara">
+        <section>
+          <h3>Suara</h3>
+          <div class="seg" id="eSeg" hidden style="grid-template-columns:repeat(2,1fr)">
+            <button type="button" data-e="claude" aria-pressed="true">Suara Claude</button>
+            <button type="button" data-e="device" aria-pressed="false">Suara perangkat</button>
+          </div>
+          <div id="devOnly">
+          <div class="seg" id="gSeg">
+            <button type="button" data-g="all" aria-pressed="true">Semua</button>
+            <button type="button" data-g="f" aria-pressed="false">Lebih tinggi</button>
+            <button type="button" data-g="m" aria-pressed="false">Lebih rendah</button>
+          </div>
+          <select id="langSel" aria-label="Bahasa suara"></select>
+          </div>
+          <select id="voiceSel" aria-label="Pilih suara"></select>
+          <button class="btn block" id="testVoice" type="button"><span data-icon="play" data-size="16"></span>Coba suara ini</button>
+          <p class="hint" id="voiceHint"></p>
+        </section>
+        <section>
+          <h3>Tempo &amp; nada</h3>
+          <div class="lbl"><span>Kecepatan</span><b id="rateTxt">1.0×</b></div>
+          <input type="range" id="rate2" min="0.5" max="2.5" step="0.05" value="1" aria-label="Kecepatan baca">
+          <div id="pitchBox">
+          <div class="lbl"><span>Nada suara</span><b id="pitchTxt">1.0</b></div>
+          <input type="range" id="pitch" min="0.6" max="1.5" step="0.05" value="1" aria-label="Nada suara">
+          <p class="hint">Suara yang kamu mau kurang tersedia? Atur nada sedikit lebih rendah atau lebih tinggi.</p>
+          </div>
+        </section>
+        <section>
+          <h3>Timer tidur</h3>
+          <div class="chips" id="sleepChips">
+            <button class="chip" type="button" data-s="0" aria-pressed="true">Mati</button>
+            <button class="chip" type="button" data-s="15" aria-pressed="false">15 mnt</button>
+            <button class="chip" type="button" data-s="30" aria-pressed="false">30 mnt</button>
+            <button class="chip" type="button" data-s="60" aria-pressed="false">60 mnt</button>
+            <button class="chip" type="button" data-s="ch" aria-pressed="false">Akhir bab</button>
+          </div>
+          <p class="hint" id="sleepHint"></p>
+        </section>
+        <section>
+          <h3>Tampilan teks</h3>
+          <div class="chips">
+            <button class="chip" type="button" id="fsMinus">A−</button>
+            <button class="chip" type="button" id="fsPlus">A+</button>
+          </div>
+        </section>
+      </div>
+      <div class="pline">
+        <span id="pgLabel">Hal 1 / 1</span>
+        <input type="range" id="pgSlider" min="1" max="1" value="1" aria-label="Geser halaman">
+        <label class="goto"><span>Ke hal</span><input type="number" id="pgInput" min="1" inputmode="numeric" aria-label="Lompat ke halaman"></label>
+      </div>
+      <div class="ctrls">
+        <div class="xport">
+          <button class="ib" id="bPrevPage" title="Halaman sebelumnya (Shift+←)" aria-label="Halaman sebelumnya" data-icon="chevL"></button>
+          <button class="ib" id="bPrev" title="Kalimat sebelumnya (←)" aria-label="Kalimat sebelumnya" data-icon="skipB"></button>
+          <button class="big" id="bPlay" title="Putar / jeda (Spasi)" aria-label="Putar"></button>
+          <button class="ib" id="bNext" title="Kalimat berikutnya (→)" aria-label="Kalimat berikutnya" data-icon="skipF"></button>
+          <button class="ib" id="bNextPage" title="Halaman berikutnya (Shift+→)" aria-label="Halaman berikutnya" data-icon="chevR"></button>
+        </div>
+        <div class="tempo">
+          <button class="ib" id="rMinus" title="Lebih lambat" aria-label="Lebih lambat">−</button>
+          <input type="range" id="rate" min="0.5" max="2.5" step="0.05" value="1" aria-label="Kecepatan baca">
+          <button class="ib" id="rPlus" title="Lebih cepat" aria-label="Lebih cepat">+</button>
+          <b id="rateLabel">1.0×</b>
+        </div>
+        <div class="tools">
+          <button class="ib" id="bBm" title="Tandai posisi ini (B)" aria-label="Tandai posisi ini" data-icon="bookmark"></button>
+          <button class="ib" id="bSet" title="Suara, tempo, timer" aria-label="Pengaturan" data-icon="sliders"></button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file" accept=".epub,.pdf,application/epub+zip,application/pdf" multiple hidden>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(()=>{
+'use strict';
+
+/* =================== helpers =================== */
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+function h(tag,attrs,...kids){
+  const e=document.createElement(tag);
+  if(attrs) for(const [k,v] of Object.entries(attrs)){
+    if(k==='class') e.className=v;
+    else if(k==='text') e.textContent=v;
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2),v);
+    else if(v!==false&&v!=null) e.setAttribute(k,v===true?'':v);
+  }
+  for(const c of kids.flat()){ if(c==null||c===false) continue; e.append(c.nodeType?c:document.createTextNode(String(c))); }
+  return e;
+}
+const ICONS={
+  play:'<polygon points="7 4 20 12 7 20 7 4" fill="currentColor"/>',
+  pause:'<rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/>',
+  skipB:'<polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/>',
+  skipF:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>',
+  chevL:'<polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/>',
+  chevR:'<polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/>',
+  bookmark:'<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>',
+  sliders:'<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+  menu:'<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+  x:'<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
+  headphones:'<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>'
+};
+const svg=(n,s=20)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||''}</svg>`;
+function paintIcons(root=document){ $$('[data-icon]',root).forEach(e=>{ e.innerHTML=svg(e.dataset.icon,+e.dataset.size||20); }); }
+const clean=s=>String(s||'').replace(/[­​﻿]/g,'').replace(/\s+/g,' ').trim();
+const ls={
+  get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+let toastT=0;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3200); }
+const fmtRate=r=>(+r).toFixed(2).replace(/0$/,'').replace(/\.$/,'.0')+'×';
+const fileBase=n=>n.replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').trim();
+
+/* =================== text → units =================== */
+function sentences(t){
+  const out=[]; let last=0; const re=/[.!?…]+["'”’)\]]*\s+/g; let m;
+  while((m=re.exec(t))){ const end=m.index+m[0].length; out.push(t.slice(last,end).trim()); last=end; }
+  if(last<t.length) out.push(t.slice(last).trim());
+  return out.filter(Boolean);
+}
+function chunkText(t,max=200){
+  const out=[]; let buf='';
+  for(let s of sentences(t)){
+    while(s.length>max*1.4){
+      let cut=s.lastIndexOf(', ',max); if(cut<60) cut=s.lastIndexOf(' ',max); if(cut<40) cut=max;
+      const head=s.slice(0,cut+1).trim(); s=s.slice(cut+1).trim();
+      if(buf){ out.push(buf); buf=''; }
+      out.push(head);
+    }
+    if(!s) continue;
+    if(buf){
+      if(buf.length<45 && buf.length+1+s.length<=max){ buf+=' '+s; continue; }
+      out.push(buf);
+    }
+    buf=s;
+  }
+  if(buf) out.push(buf);
+  return out;
+}
+function detectLang(sample){
+  const s=' '+sample.toLowerCase().replace(/[^a-zà-ÿ]+/g,' ')+' ';
+  const cnt=(arr)=>arr.reduce((n,w)=>n+(s.split(' '+w+' ').length-1),0);
+  const id=cnt(['yang','dan','di','dengan','untuk','ini','itu','tidak','dari','pada','adalah','dalam','akan']);
+  const en=cnt(['the','and','of','to','in','that','is','was','for','with','it','as','his','her']);
+  if(id+en<8) return '';
+  return id>en?'id':'en';
+}
+function buildBook(parsed){
+  const units=[]; const chapters=[];
+  const isPdf=parsed.type==='pdf';
+  let page=0, acc=0, lastCh=-2;
+  parsed.paras.forEach((p,pi)=>{
+    let pg;
+    if(isPdf) pg=p.pg;
+    else{
+      if(p.ch!==lastCh || acc>=1600){ page++; acc=0; }
+      pg=page; acc+=p.t.length;
+      if(p.ch!==lastCh){ chapters.push({title:parsed.chapters[p.ch]?parsed.chapters[p.ch].title:'Bagian '+(chapters.length+1),u:units.length,pg}); lastCh=p.ch; }
+    }
+    for(const c of chunkText(p.t)) units.push({t:c,pa:pi,pg});
+  });
+  const nPages=isPdf?parsed.nPages:Math.max(page,1);
+  if(isPdf){
+    const first=new Array(nPages+2).fill(-1);
+    units.forEach((u,i)=>{ if(first[u.pg]<0) first[u.pg]=i; });
+    for(let p=nPages;p>=1;p--) if(first[p]<0) first[p]=first[p+1]>=0?first[p+1]:units.length;
+    for(const c of parsed.chapters||[]) chapters.push({title:c.title,u:Math.min(first[Math.min(Math.max(c.pg,1),nPages)],Math.max(units.length-1,0)),pg:c.pg});
+    chapters.sort((a,b)=>a.u-b.u);
+  }
+  return {units,chapters,nPages};
+}
+function pageStarts(units,nPages){
+  const ps=new Array(nPages+2).fill(-1);
+  units.forEach((u,i)=>{ if(ps[u.pg]<0) ps[u.pg]=i; });
+  ps[nPages+1]=units.length;
+  for(let p=nPages;p>=1;p--) if(ps[p]<0) ps[p]=ps[p+1];
+  return ps;
+}
+
+/* =================== EPUB =================== */
+function normPath(p){ const out=[]; for(const seg of p.split('/')){ if(seg===''||seg==='.') continue; if(seg==='..') out.pop(); else out.push(seg); } return out.join('/'); }
+const dirOf=p=>p.includes('/')?p.slice(0,p.lastIndexOf('/')+1):'';
+function resolvePath(baseDir,href){ let p=href.split('#')[0]; try{ p=decodeURIComponent(p); }catch(e){} return normPath(baseDir+p); }
+const BLOCK='h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,dd,dt,figcaption,td,th,caption,div';
+
+async function parseEpub(file,onProgress){
+  if(!window.JSZip) throw new Error('Pustaka pembuka EPUB belum termuat. Cek koneksi internet lalu muat ulang halaman.');
+  const zip=await JSZip.loadAsync(await file.arrayBuffer());
+  const lower={}; Object.keys(zip.files).forEach(n=>lower[n.toLowerCase()]=n);
+  const getF=p=>zip.file(p)||(lower[p.toLowerCase()]?zip.file(lower[p.toLowerCase()]):null);
+  const text=async p=>{ const f=getF(p); return f?f.async('string'):null; };
+  const xml=s=>new DOMParser().parseFromString(s,'application/xml');
+  const container=await text('META-INF/container.xml');
+  if(!container) throw new Error('Ini bukan file EPUB yang valid.');
+  const rf=xml(container).getElementsByTagName('rootfile')[0];
+  const opfPath=rf&&rf.getAttribute('full-path');
+  const opfRaw=opfPath&&await text(opfPath);
+  if(!opfRaw) throw new Error('Struktur EPUB rusak (file OPF tidak ditemukan).');
+  const opf=xml(opfRaw); const base=dirOf(opfPath);
+  const ns=(d,n)=>d.getElementsByTagNameNS('*',n);
+  const meta1=n=>{ const e=ns(opf,n)[0]; return e?clean(e.textContent):''; };
+  const manifest={};
+  for(const it of ns(opf,'item')) manifest[it.getAttribute('id')]={href:it.getAttribute('href')||'',type:it.getAttribute('media-type')||'',props:it.getAttribute('properties')||''};
+  const spine=[...ns(opf,'itemref')].map(r=>manifest[r.getAttribute('idref')]).filter(Boolean);
+
+  // daftar isi (nav EPUB3, atau NCX EPUB2)
+  const toc=new Map();
+  const addToc=(tocPath,href,title)=>{
+    title=clean(title); if(!href||!title) return;
+    const path=resolvePath(dirOf(tocPath),href); const frag=href.includes('#')?href.split('#')[1]:'';
+    if(!toc.has(path)) toc.set(path,[]); toc.get(path).push({frag,title});
+  };
+  try{
+    const navItem=Object.values(manifest).find(m=>/\bnav\b/.test(m.props));
+    if(navItem){
+      const np=resolvePath(base,navItem.href); const raw=await text(np);
+      if(raw){
+        const d=new DOMParser().parseFromString(raw,'text/html');
+        const nav=[...d.querySelectorAll('nav')].find(n=>(n.getAttribute('epub:type')||'').includes('toc'))||d.querySelector('nav');
+        if(nav) nav.querySelectorAll('a[href]').forEach(a=>addToc(np,a.getAttribute('href'),a.textContent));
+      }
+    }
+    if(!toc.size){
+      const sp=ns(opf,'spine')[0]; const tid=sp&&sp.getAttribute('toc');
+      const ncxItem=(tid&&manifest[tid])||Object.values(manifest).find(m=>m.type==='application/x-dtbncx+xml');
+      if(ncxItem){
+        const np=resolvePath(base,ncxItem.href); const raw=await text(np);
+        if(raw){ const d=xml(raw); for(const pt of ns(d,'navPoint')){ const lab=ns(pt,'text')[0], con=ns(pt,'content')[0]; if(lab&&con) addToc(np,con.getAttribute('src'),lab.textContent); } }
+      }
+    }
+  }catch(e){ /* tanpa daftar isi */ }
+
+  const paras=[]; const chapters=[]; let chapChars=0; let di=0;
+  for(const item of spine){
+    di++; onProgress&&onProgress(di/spine.length);
+    if(!/x?html|xml/.test(item.type)||/\bnav\b/.test(item.props)) continue;
+    const path=resolvePath(base,item.href);
+    const raw=await text(path); if(!raw) continue;
+    const doc=new DOMParser().parseFromString(raw,'text/html');
+    doc.querySelectorAll('script,style,rt,svg').forEach(n=>n.remove());
+    const entries=toc.get(path)||[]; const fragMap=new Map(); let fileTitle=null;
+    for(const e of entries){ if(!e.frag){ if(fileTitle===null) fileTitle=e.title; } else fragMap.set(e.frag,e.title); }
+    let pending=fileTitle!==null?{title:fileTitle}:null; let docStart=true;
+    const emit=(t,isHead)=>{
+      let startNew=false,title=null;
+      if(pending){ startNew=true; title=pending.title; pending=null; docStart=false; }
+      else if(docStart){ docStart=false; if(!chapters.length||chapChars>1500){ startNew=true; title=isHead?t:null; } }
+      if(startNew){ chapters.push({title:title||('Bagian '+(chapters.length+1))}); chapChars=0; }
+      if(!chapters.length) chapters.push({title:'Awal'});
+      paras.push({t,ch:chapters.length-1}); chapChars+=t.length;
+    };
+    let got=0;
+    const body=doc.body; if(!body) continue;
+    for(const e of body.querySelectorAll('*')){
+      const id=e.getAttribute('id')||e.getAttribute('name');
+      if(id&&fragMap.has(id)) pending={title:fragMap.get(id)};
+      if(!e.matches(BLOCK)||e.querySelector(BLOCK)) continue;
+      const t=clean(e.textContent); if(!t) continue;
+      emit(t,/^H[1-6]$/.test(e.tagName)); got++;
+    }
+    if(!got){
+      for(const line of (body.textContent||'').split(/\n+/)){ const t=clean(line); if(t){ emit(t,false); got++; } }
+    }
+    if(di%4===0) await new Promise(r=>setTimeout(r));
+  }
+  if(!paras.length) throw new Error('Tidak ada teks yang bisa dibacakan di EPUB ini (mungkin berisi gambar saja atau diproteksi DRM).');
+  const lang=(meta1('language')||'').slice(0,2).toLowerCase()||detectLang(paras.slice(0,200).map(p=>p.t).join(' '));
+  return {type:'epub',title:meta1('title')||fileBase(file.name),author:meta1('creator'),lang,paras,chapters};
+}
+
+/* =================== PDF =================== */
+let pdfReady=false;
+function setupPdf(){
+  if(pdfReady||!window.pdfjsLib) return; pdfReady=true;
+  const url='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  try{
+    const blob=new Blob(['importScripts("'+url+'");'],{type:'text/javascript'});
+    pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(blob);
+  }catch(e){ pdfjsLib.GlobalWorkerOptions.workerSrc=url; }
+}
+async function parsePdf(file,onProgress){
+  if(!window.pdfjsLib) throw new Error('Pustaka pembuka PDF belum termuat. Cek koneksi internet lalu muat ulang halaman.');
+  setupPdf();
+  const data=new Uint8Array(await file.arrayBuffer());
+  const pdf=await pdfjsLib.getDocument({data}).promise;
+  const info=await pdf.getMetadata().catch(()=>null);
+  const paras=[]; let chars=0;
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p); const tc=await page.getTextContent();
+    const lines=[]; let cur=null, prev=null;
+    for(const it of tc.items){
+      if(typeof it.str!=='string') continue;
+      const y=it.transform[5], hh=it.height||Math.abs(it.transform[3])||10;
+      if(!cur||Math.abs(cur.y-y)>hh*0.6){ if(cur) lines.push(cur); cur={y,s:it.str,hh}; }
+      else{
+        const gap=it.transform[4]-(prev.transform[4]+(prev.width||0));
+        const need=gap>hh*0.15&&!/\s$/.test(cur.s)&&!/^\s/.test(it.str);
+        cur.s+=(need?' ':'')+it.str;
+      }
+      prev=it;
+    }
+    if(cur) lines.push(cur);
+    const L=lines.map(l=>({y:l.y,s:clean(l.s)})).filter(l=>l.s&&!/^\d{1,4}$/.test(l.s));
+    const dys=[]; for(let i=1;i<L.length;i++){ const d=Math.abs(L[i-1].y-L[i].y); if(d>0) dys.push(d); }
+    dys.sort((a,b)=>a-b); const med=dys.length?dys[Math.floor(dys.length/2)]:12;
+    let pc='';
+    const flush=()=>{ const t=clean(pc); if(t){ paras.push({t,ch:-1,pg:p}); chars+=t.length; } pc=''; };
+    L.forEach((l,i)=>{
+      if(i>0){
+        const dy=Math.abs(L[i-1].y-l.y);
+        if(dy>med*1.6||(dy>med*1.25&&/[.!?”"]$/.test(pc))) flush();
+      }
+      if(pc&&/[a-zà-ÿ]-$/.test(pc)&&/^[a-zà-ÿ]/.test(l.s)) pc=pc.slice(0,-1)+l.s;
+      else pc+=(pc?' ':'')+l.s;
+    });
+    flush();
+    page.cleanup();
+    onProgress&&onProgress(p/pdf.numPages);
+    if(p%3===0) await new Promise(r=>setTimeout(r));
+  }
+  if(chars<200) throw new Error('PDF ini sepertinya hasil scan (berupa gambar), jadi tidak ada teks yang bisa dibacakan. Jalankan OCR dulu, lalu coba lagi.');
+  const chapters=[];
+  try{
+    const ol=await pdf.getOutline();
+    if(ol){
+      const flat=[]; (function walk(items,d){ for(const it of items){ flat.push(it); if(it.items&&it.items.length&&d<1) walk(it.items,d+1); } })(ol,0);
+      for(const it of flat.slice(0,400)){
+        let dest=it.dest; if(typeof dest==='string') dest=await pdf.getDestination(dest);
+        if(!Array.isArray(dest)) continue;
+        const idx=await pdf.getPageIndex(dest[0]); const title=clean(it.title);
+        if(title) chapters.push({title,pg:idx+1});
+      }
+    }
+  }catch(e){}
+  const inf=(info&&info.info)||{};
+  const lang=((inf.Language||'').slice(0,2).toLowerCase())||detectLang(paras.slice(0,200).map(p=>p.t).join(' '));
+  return {type:'pdf',title:clean(inf.Title)||fileBase(file.name),author:clean(inf.Author),lang,paras,chapters,nPages:pdf.numPages};
+}
+
+/* =================== storage =================== */
+let dbp=null;
+function db(){
+  if(dbp) return dbp;
+  dbp=new Promise((res,rej)=>{
+    try{
+      const r=indexedDB.open('pustaka-dengar',1);
+      r.onupgradeneeded=()=>{ r.result.createObjectStore('meta',{keyPath:'id'}); r.result.createObjectStore('content',{keyPath:'id'}); };
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); r.onblocked=()=>rej(new Error('blocked'));
+    }catch(e){ rej(e); }
+  });
+  return dbp;
+}
+async function tx(store,mode,fn){
+  const d=await db();
+  return new Promise((res,rej)=>{
+    const t=d.transaction(store,mode); const r=fn(t.objectStore(store));
+    t.oncomplete=()=>res(r&&r.result); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error);
+  });
+}
+const idb={
+  get:(s,k)=>tx(s,'readonly',o=>o.get(k)),
+  put:(s,v)=>tx(s,'readwrite',o=>o.put(v)),
+  all:s=>tx(s,'readonly',o=>o.getAll()),
+  del:(s,k)=>tx(s,'readwrite',o=>o.delete(k))
+};
+
+/* =================== state =================== */
+const S={
+  settings:Object.assign({engine:'claude',cvoice:'buttery',theme:null,fs:(matchMedia('(max-width:980px)').matches?19:21),rate:1,pitch:1,gender:'all',lang:'auto',voiceURI:''},ls.get('pd.settings',{})),
+  books:[], cache:new Map(), noStore:false,
+  meta:null, units:[], chapters:[], ps:[], nPages:1, cur:0, pgShown:1,
+  playing:false, token:0, utt:null, sleep:{type:0,at:0},
+  voices:[], tts:null, curEnd:-1, lineEnd:new Map()
+};
+if(!S.settings.v){ S.settings.v=2; S.settings.engine='device'; }
+const saveSettings=()=>{ ls.set('pd.settings',S.settings); C.prefsDirty=true; cloudSoon(); };
+const synth=window.speechSynthesis||null;
+
+/* =================== voices =================== */
+const FEM=new Set('samantha karen moira tessa fiona victoria zira hazel susan heera linda catherine zoe allison ava kate serena sara sarah joanna salli kendra kimberly ivy emma amy nicole raveena gadis damayanti helena laura paulina monica sabina amelie audrey marie alice federica elsa ioana lekha mariska milena yelda kyoko kanya nora satu sandy shelley flo jenny aria michelle libby sonia natasha clara elvira denise katja amala nanami xiaoxiao hanna anna isabella vicki agnes kathy neerja aditi priya veena ting mei yuna sinji'.split(' '));
+const MAL=new Set('alex daniel fred david mark george ravi guy ardi jamie aaron arthur rishi thomas oliver lee gordon tom james richard paul jorge diego juan luca xander yuri stefan cosimo hemant markus rocko reed eddy bruce ralph albert henri pablo andika ryan christopher brian eric roger steffan prabhat conrad keita otoya ichiro kangkang yunyang injoon'.split(' '));
+function genderOf(v){
+  const n=(v.name||'').toLowerCase(); const toks=n.split(/[^a-zà-ÿ]+/).filter(Boolean);
+  if(toks.includes('female')||toks.includes('woman')) return 'f';
+  if(toks.includes('male')||toks.includes('man')) return 'm';
+  if(toks.includes('google')&&toks.includes('bahasa')&&toks.includes('indonesia')) return 'f';
+  for(const t of toks){ if(FEM.has(t)) return 'f'; if(MAL.has(t)) return 'm'; }
+  return '';
+}
+const CVOICES=[['buttery','Buttery'],['airy','Airy'],['glassy','Glassy'],['rounded','Rounded']];
+const engineNow=()=>(S.settings.engine==='claude'&&S.tts)?'claude':'device';
+function effLang(){
+  const s=S.settings.lang;
+  return s==='auto'?'id':s;
+}
+function filteredVoices(){
+  const l=effLang(), g=S.settings.gender;
+  const pri=x=>/google/i.test(x.v.name)&&/indonesia|bahasa/i.test(x.v.name)?0:1;
+  return S.voices.filter(x=>(l==='all'||x.lang.startsWith(l))&&(g==='all'||x.g===g)).sort((a,b)=>pri(a)-pri(b));
+}
+function activeVoice(){
+  const cur=S.voices.find(x=>x.v.voiceURI===S.settings.voiceURI);
+  const list=filteredVoices();
+  if(cur&&list.includes(cur)) return cur.v;
+  return list[0]?list[0].v:(cur?cur.v:null);
+}
+function langName(code){ try{ return new Intl.DisplayNames(['id'],{type:'language'}).of(code)||code; }catch(e){ return code; } }
+function loadVoices(){
+  if(!synth) return;
+  S.voices=(synth.getVoices()||[]).map(v=>({v,g:genderOf(v),lang:(v.lang||'').replace('_','-').toLowerCase()}));
+  renderVoiceUI();
+}
+function renderVoiceUI(){
+  const st=S.settings;
+  const eng=engineNow();
+  $('#eSeg').hidden=!S.tts;
+  $$('#eSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.e===eng)));
+  $('#devOnly').hidden=eng==='claude'; $('#pitchBox').hidden=eng==='claude';
+  if(eng==='claude'){
+    const sel=$('#voiceSel'); sel.textContent='';
+    CVOICES.forEach(([v,n])=>sel.append(h('option',{value:v,text:'Claude · '+n})));
+    sel.value=st.cvoice||'buttery';
+    $('#voiceHint').textContent='Suara Claude membaca dalam Bahasa Indonesia dan tidak butuh suara tambahan di perangkat. Keempat suara punya warna berbeda, jadi coba satu per satu. Kecepatan 0.7× sampai 1.5×.';
+    return;
+  }
+  $$('#gSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.g===st.gender)));
+  const langs=[...new Set(S.voices.map(x=>x.lang.slice(0,2)))].sort((a,b)=>{ const pr=c=>c==='id'?0:c==='en'?1:2; return pr(a)-pr(b)||a.localeCompare(b); });
+  const ls_=$('#langSel'); ls_.textContent='';
+  ls_.append(h('option',{value:'auto',text:'Bahasa Indonesia (default)'}),h('option',{value:'all',text:'Semua bahasa'}));
+  langs.forEach(c=>ls_.append(h('option',{value:c,text:langName(c)})));
+  ls_.value=st.lang;
+  const list=filteredVoices(); const sel=$('#voiceSel'); sel.textContent='';
+  list.forEach(x=>sel.append(h('option',{value:x.v.voiceURI,text:`${x.v.name} · ${x.lang}`})));
+  const av=activeVoice(); if(av) sel.value=av.voiceURI;
+  const hint=$('#voiceHint');
+  if(!synth) hint.textContent='Browser ini tidak mendukung suara bawaan. Coba Chrome, Edge, atau Safari.';
+  else if(!S.voices.length) hint.textContent='Sedang memuat daftar suara… kalau tetap kosong, cek pengaturan Text-to-speech di perangkatmu.';
+  else if(!list.length&&effLang()==='id'&&st.gender==='all') hint.textContent='Perangkat ini belum punya suara Bahasa Indonesia. Android: Pengaturan > Text-to-speech > Google, unduh Indonesia. iPhone: Aksesibilitas > Konten Terucap > Suara > Indonesia. Windows: Pengaturan > Waktu & bahasa > Ucapan, tambah suara Indonesia (Ardi/Gadis). Chrome di komputer biasanya sudah punya "Google Bahasa Indonesia".';
+  else if(!list.length) hint.textContent='Tidak ada suara dengan nada itu untuk bahasa ini di perangkatmu. Pilih "Semua bahasa", atau tambah suara lewat pengaturan Text-to-speech perangkat.';
+  else hint.textContent='Pengelompokan nada ditebak dari nama suara, jadi tidak selalu pas. Pakai tombol "Coba suara ini".';
+}
+
+/* =================== playback =================== */
+function langForUtt(v){ if(v) return v.lang; const l=effLang(); return l==='id'?'id-ID':l==='en'?'en-US':undefined; }
+function speakFrom(i,opts){
+  if(engineNow()==='device'&&!synth){ toast('Browser ini belum mendukung suara bawaan.'); return; }
+  if(i>=S.units.length){ stopPlay(); toast('Selesai, kamu sampai di akhir buku.'); return; }
+  i=Math.max(0,i);
+  // timer tidur: berhenti di batas kalimat
+  if(!(opts&&opts.fresh)){
+    const sl=S.sleep;
+    if(sl.type==='time'&&Date.now()>=sl.at){ setSleep(0); stopPlay(); toast('Timer tidur selesai, pembacaan dijeda.'); return; }
+    if(sl.type==='ch'&&S.cur<S.units.length&&chapterIndexOf(i)!==chapterIndexOf(S.cur)){ setSleep(0); setCur(i); stopPlay(); toast('Bab selesai, pembacaan dijeda.'); return; }
+  }
+  const my=++S.token; S.playing=true; setCur(i); updatePlayBtn();
+  if(engineNow()==='claude'){ speakClaude(i,my); return; }
+  const u=new SpeechSynthesisUtterance(S.units[i].t);
+  const v=activeVoice(); if(v) u.voice=v;
+  const lg=langForUtt(v); if(lg) u.lang=lg;
+  u.rate=+S.settings.rate; u.pitch=+S.settings.pitch;
+  u.onend=()=>{ if(my!==S.token||!S.playing) return; speakFrom(i+1); };
+  u.onerror=e=>{
+    if(my!==S.token) return;
+    if(e.error==='interrupted'||e.error==='canceled') return;
+    stopPlay(); toast('Suara gagal diputar ('+e.error+'). Coba pilih suara lain di pengaturan.');
+  };
+  S.utt=u;
+  synth.cancel();
+  setTimeout(()=>{ if(my===S.token&&S.playing) synth.speak(u); },40);
+}
+function speakClaude(i,my){
+  const lang=effLang()==='all'?'id':effLang();
+  const lines=[]; S.lineEnd=new Map();
+  let k=i;
+  while(k<S.units.length&&lines.length<12){
+    const pa=S.units[k].pa, start=k; let txt='';
+    while(k<S.units.length&&S.units[k].pa===pa&&(!txt||txt.length+S.units[k].t.length+1<=1800)){ txt+=(txt?' ':'')+S.units[k].t; k++; }
+    lines.push({text:txt.slice(0,1900),id:String(start),voice:S.settings.cvoice||'buttery',language:lang,rate:+S.settings.rate});
+    S.lineEnd.set(String(start),k-1);
+  }
+  const end=k;
+  S.tts.speak(lines).then(()=>{ if(my===S.token&&S.playing) speakFrom(end); }).catch(e=>{
+    if(my!==S.token) return;
+    stopPlay(); const c=e&&e.code;
+    const why=e&&e.reason; const msg=e&&e.message;
+    if(c==='rate_limited') toast('Batas pemakaian suara Claude sedang habis. Coba lagi nanti, atau pakai suara perangkat.');
+    else if(c==='no_gesture') toast('Tekan tombol putar sekali lagi untuk memulai suara.');
+    else if(c==='stopped'||why==='viewer_stopped'||why==='replaced'||why==='stopped'){ /* dihentikan pengguna */ }
+    else if(c!=='viewer_stopped') toast('Suara Claude gagal diputar'+(c?' ('+c+')':'')+'. Coba lagi, atau pakai suara perangkat.');
+  });
+}
+function onClaudeLine(ev){
+  if(!S.playing||engineNow()!=='claude') return;
+  const id=+(ev&&ev.id); if(!Number.isFinite(id)) return;
+  const sl=S.sleep;
+  if(sl.type==='time'&&Date.now()>=sl.at){ setSleep(0); stopPlay(); toast('Timer tidur selesai, pembacaan dijeda.'); return; }
+  if(sl.type==='ch'&&chapterIndexOf(id)!==chapterIndexOf(S.cur)){ setSleep(0); stopPlay(); setCur(id); toast('Bab selesai, pembacaan dijeda.'); return; }
+  setCur(id,false,S.lineEnd.get(String(id)));
+}
+function stopPlay(){
+  S.playing=false; S.token++; if(synth) synth.cancel();
+  try{ if(S.tts) S.tts.stop(); }catch(e){} updatePlayBtn(); persist(); cloudFlushNow();
+}
+function togglePlay(){
+  if(!S.meta) return;
+  if(S.playing) stopPlay(); else speakFrom(S.cur,{fresh:true});
+}
+function restartIfPlaying(){ if(S.playing) speakFrom(S.cur,{fresh:true}); }
+function updatePlayBtn(){
+  const b=$('#bPlay'); b.innerHTML=svg(S.playing?'pause':'play',26); b.setAttribute('aria-label',S.playing?'Jeda':'Putar');
+}
+
+/* =================== reader view =================== */
+function chapterIndexOf(u){
+  let lo=0,hi=S.chapters.length-1,r=-1;
+  while(lo<=hi){ const m=(lo+hi)>>1; if(S.chapters[m].u<=u){ r=m; lo=m+1; } else hi=m-1; }
+  return r;
+}
+function chapterTitleOf(u){ const i=chapterIndexOf(u); return i>=0?S.chapters[i].title:''; }
+function renderPage(pg){
+  S.pgShown=pg;
+  const wrap=$('#page'); wrap.textContent='';
+  const a=S.ps[pg], b=S.ps[pg+1];
+  if(a>=b){
+    wrap.append(h('div',{class:'blank',text:'Halaman ini tidak punya teks (mungkin gambar). Tekan putar untuk lanjut ke halaman berikutnya.'}));
+  }else{
+    let p=null, lastPa=-1; const bms=new Set(S.meta.bookmarks.map(x=>x.u));
+    for(let i=a;i<b;i++){
+      const u=S.units[i];
+      if(u.pa!==lastPa){ p=h('p'); wrap.append(p); lastPa=u.pa; }
+      const sp=h('span',{class:'u'+(bms.has(i)?' bm':''),'data-u':i,text:u.t+' '});
+      p.append(sp);
+    }
+  }
+  $('#phChap').textContent=chapterTitleOf(Math.min(Math.max(a,0),Math.max(S.units.length-1,0)));
+  $('#phPage').textContent='Halaman '+pg+' dari '+S.nPages;
+  updateHeader(); highlight(false);
+}
+let lastEls=[];
+function highlight(scroll){
+  lastEls.forEach(e=>e.classList.remove('cur')); lastEls=[];
+  const end=S.curEnd>=S.cur?S.curEnd:S.cur;
+  for(let k=S.cur;k<=end;k++){ const el=$(`#page [data-u="${k}"]`); if(el){ el.classList.add('cur'); lastEls.push(el); } }
+  if(scroll&&lastEls[0]) lastEls[0].scrollIntoView({block:'center',behavior:'smooth'});
+}
+function updateHeader(){
+  const m=S.meta; if(!m) return;
+  const pct=S.units.length?Math.round(S.cur/S.units.length*100):0;
+  $('#bTitle').textContent=m.title; $('#bSub').textContent=[m.author,chapterTitleOf(S.cur)].filter(Boolean).join(' · ')||(m.type==='pdf'?'PDF':'EPUB');
+  $('#bPct').textContent=pct+'%';
+  $('#pgLabel').textContent='Hal '+S.pgShown+' / '+S.nPages;
+  const sl=$('#pgSlider'); sl.max=S.nPages; sl.value=S.pgShown;
+  const inp=$('#pgInput'); inp.max=S.nPages; if(document.activeElement!==inp) inp.value=S.pgShown;
+  const onUnit=S.meta.bookmarks.some(b=>b.u===S.cur);
+  $('#bBm').classList.toggle('on',onUnit);
+  $('#bBm').querySelector('svg').setAttribute('fill',onUnit?'currentColor':'none');
+}
+function setCur(u,scroll,end){
+  u=Math.min(Math.max(u,0),Math.max(S.units.length-1,0));
+  S.cur=u; S.curEnd=(end==null?-1:end);
+  const pg=S.units[u]?S.units[u].pg:1;
+  if(pg!==S.pgShown||!$('#page').firstChild){ renderPage(pg); }
+  else{ updateHeader(); }
+  highlight(true);
+  markCurrentRows();
+  persistSoon();
+}
+function jump(u){ if(S.playing) speakFrom(u,{fresh:true}); else setCur(u,true); }
+function gotoPage(pg){
+  pg=Math.min(Math.max(Math.round(+pg)||1,1),S.nPages);
+  const u=Math.min(S.ps[pg],Math.max(S.units.length-1,0));
+  if(S.playing){ speakFrom(u,{fresh:true}); if(S.pgShown!==pg) renderPage(pg); return; }
+  S.cur=u; renderPage(pg); $('#reader').scrollTo({top:0}); persistSoon(); markCurrentRows();
+}
+function step(d){ jump(Math.min(Math.max(S.cur+d,0),S.units.length-1)); }
+function pageStep(d){ gotoPage(S.pgShown+d); }
+
+/* =================== persistence of state =================== */
+let pt=0;
+function persistSoon(){ clearTimeout(pt); pt=setTimeout(persist,700); }
+function persist(){
+  clearTimeout(pt);
+  const m=S.meta; if(!m) return;
+  let changed=false;
+  if(m.pos!==S.cur||m.pg!==S.pgShown){ m.pos=S.cur; m.pg=S.pgShown; m.updated=Date.now(); m.ch=chapterTitleOf(S.cur); changed=true; }
+  idb.put('meta',m).catch(()=>setNoStore());
+  renderLibrary();
+  if(changed&&m.fp){ C.dirty.add(m.fp); cloudSoon(); }
+}
+function touchBook(){
+  const m=S.meta; if(!m) return;
+  m.updated=Date.now();
+  if(m.fp){ C.dirty.add(m.fp); cloudSoon(); }
+}
+function setNoStore(){
+  if(S.noStore) return; S.noStore=true;
+  const b=$('#banner'); b.hidden=false;
+  b.textContent='Penyimpanan di browser ini sedang tidak tersedia, jadi buku dan penanda hanya bertahan sampai halaman ditutup.';
+}
+
+/* =================== library =================== */
+async function loadLibrary(){
+  try{ S.books=(await idb.all('meta'))||[]; }catch(e){ setNoStore(); S.books=[]; }
+  renderLibrary();
+}
+function relDate(t){
+  if(!t) return '';
+  const d=Math.floor((Date.now()-t)/86400000);
+  if(d<=0) return 'hari ini'; if(d===1) return 'kemarin';
+  if(d<7) return d+' hari lalu';
+  return new Date(t).toLocaleDateString('id-ID',{day:'numeric',month:'short'});
+}
+function renderLibrary(){
+  const box=$('#books'); box.textContent='';
+  $('#nLib').textContent=S.books.length;
+  if(!S.books.length){ box.append(h('p',{class:'empty',text:'Belum ada buku. Tambahkan file EPUB atau PDF untuk mulai.'})); return; }
+  [...S.books].sort((a,b)=>(b.updated||0)-(a.updated||0)).forEach(m=>{
+    const pct=m.nUnits?Math.round((m.pos||0)/m.nUnits*100):0;
+    const delLabel=m.cloudOnly?'Hapus progres':'Hapus';
+    const del=h('button',{class:'del',type:'button',text:delLabel,'aria-label':delLabel+' '+m.title});
+    let armed=0;
+    del.addEventListener('click',e=>{
+      e.stopPropagation();
+      if(!armed){ armed=1; del.textContent='Yakin?'; setTimeout(()=>{ armed=0; del.textContent=delLabel; },3000); }
+      else removeBook(m.id);
+    });
+    const card=h('div',{class:'book'+(S.meta&&S.meta.id===m.id?' active':''),role:'button',tabindex:'0','aria-label':'Buka '+m.title},
+      h('div',{class:'t',text:m.title}), del,
+      h('div',{class:'a',text:m.author||'Penulis tidak diketahui'}),
+      h('div',{class:'m'},h('span',{class:'tag',text:m.type.toUpperCase()}),m.cloudOnly?h('span',{class:'tag cloud',text:'FILE BELUM ADA DI SINI'}):null,h('span',{text:'Hal '+(m.pg||1)+' / '+m.nPages}),h('span',{text:pct+'%'}),h('span',{text:relDate(m.updated)})),
+      m.ch?h('div',{class:'cont',text:'Terakhir di: '+m.ch}):null,
+      m.cloudOnly?h('div',{class:'cont',text:'Ketuk, lalu pilih file bukunya untuk lanjut dari sini.'}):null,
+      h('div',{class:'bar'},h('i',{style:'width:'+pct+'%'})));
+    const open=()=>{
+      if(m.cloudOnly){ toast('Pilih file “'+m.title+'” yang sama, lalu kamu lanjut dari halaman '+(m.pg||1)+'.'); $('#file').click(); }
+      else openBook(m.id);
+    };
+    card.addEventListener('click',open);
+    card.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
+    box.append(card);
+  });
+}
+async function removeBook(id){
+  const m=S.books.find(b=>b.id===id); if(!m) return;
+  if(m.cloudOnly){
+    try{ if(C.ready) await col().doc('book-'+m.fp).delete(); C.docs.delete(m.fp); C.sent.delete(m.fp); }catch(e){}
+    S.books=S.books.filter(b=>b.id!==id); renderLibrary(); toast('Progres buku itu dihapus dari akunmu.'); return;
+  }
+  if(m.fp&&C.ready){ C.dirty.add(m.fp); await flushCloud(); }
+  try{ await idb.del('meta',id); await idb.del('content',id); }catch(e){}
+  S.books=S.books.filter(b=>b.id!==id); S.cache.delete(id);
+  if(S.meta&&S.meta.id===id) closeBook();
+  let msg='Buku dihapus dari pustaka.';
+  if(m.fp&&C.ready&&C.docs.has(m.fp)||m.fp&&C.sent.has(m.fp)){
+    S.books.push(Object.assign({},m,{id:'cloud-'+m.fp,cloudOnly:true}));
+    msg='Buku dihapus dari perangkat ini. Progresmu tetap tersimpan di akunmu.';
+  }
+  renderLibrary(); toast(msg);
+}
+function closeBook(){
+  stopPlay(); S.meta=null; S.units=[]; S.chapters=[];
+  $('#pageWrap').hidden=true; $('#hero').hidden=false; $('#player').hidden=true;
+  $('#bTitle').textContent='Belum ada buku dibuka'; $('#bSub').textContent='Tambah EPUB atau PDF untuk mulai'; $('#bPct').textContent='';
+  renderPanels();
+}
+async function openBook(id){
+  const m=S.books.find(b=>b.id===id); if(!m) return;
+  let c=S.cache.get(id);
+  if(!c){ try{ c=await idb.get('content',id); }catch(e){ setNoStore(); } }
+  if(!c){ toast('Isi buku tidak ditemukan. Coba tambahkan ulang filenya.'); return; }
+  S.cache.set(id,c);
+  stopPlay();
+  S.meta=m; if(!m.bookmarks) m.bookmarks=[];
+  let resumed=false;
+  if(!m.fp){ m.fp=fingerprint(m,c.units); C.dirty.add(m.fp); }
+  const cd=C.docs.get(m.fp);
+  if(cd&&(cd.updated||0)>(m.updated||0)&&(cd.pos||0)!==(m.pos||0)){ applyCloudFields(m,cd); resumed=true; }
+  S.units=c.units; S.chapters=c.chapters; S.nPages=m.nPages; S.ps=pageStarts(S.units,S.nPages);
+  S.cur=Math.min(m.pos||0,Math.max(S.units.length-1,0)); S.pgShown=0;
+  $('#hero').hidden=true; $('#pageWrap').hidden=false; $('#player').hidden=false;
+  renderVoiceUI(); updatePlayBtn();
+  const pg=S.units[S.cur]?S.units[S.cur].pg:1;
+  renderPage(pg); $('#reader').scrollTo({top:0,behavior:'auto'});
+  highlight(true);
+  persistSoon(); cloudSoon();
+  renderPanels(); renderLibrary(); closeDrawer();
+  if(resumed) toast('Dilanjutkan dari terakhir kamu berhenti: halaman '+m.pg+'.');
+}
+
+/* =================== import =================== */
+function setStatus(msg,pct,err){
+  const box=$('#importStatus'); box.textContent='';
+  if(!msg) return;
+  const d=h('div',{class:'status'+(err?' err':'')},h('div',{text:msg}));
+  if(pct!=null) d.append(h('div',{class:'bar'},h('i',{style:'width:'+Math.round(pct*100)+'%'})));
+  if(err) d.append(h('button',{class:'btn',type:'button',style:'margin-top:8px',text:'Tutup',onclick:()=>setStatus('')}));
+  box.append(d);
+}
+async function importFiles(files){
+  openDrawer();
+  for(const f of files){
+    const ext=(f.name.split('.').pop()||'').toLowerCase();
+    if(ext!=='epub'&&ext!=='pdf'){ setStatus('“'+f.name+'” bukan EPUB atau PDF.',null,true); continue; }
+    const id=ext+'-'+f.size+'-'+f.lastModified+'-'+f.name.length;
+    if(S.books.some(b=>b.id===id)){ toast('Buku itu sudah ada di pustaka, langsung dibuka.'); await openBook(id); continue; }
+    try{
+      setStatus('Membaca “'+f.name+'”…',0.02);
+      const prog=p=>setStatus('Mengolah “'+f.name+'”… '+Math.round(p*100)+'%',p);
+      const parsed=ext==='epub'?await parseEpub(f,prog):await parsePdf(f,prog);
+      setStatus('Menyiapkan kalimat untuk dibacakan…',0.98);
+      const b=buildBook(parsed);
+      const meta={id,title:parsed.title,author:parsed.author,lang:parsed.lang,type:parsed.type,nPages:b.nPages,nUnits:b.units.length,pos:0,pg:1,ch:'',bookmarks:[],added:Date.now(),updated:Date.now()};
+      meta.fp=fingerprint(meta,b.units);
+      const same=S.books.find(x=>x.fp===meta.fp&&!x.cloudOnly);
+      if(same){ setStatus(''); toast('Buku itu sudah ada di pustaka, langsung dibuka.'); await openBook(same.id); continue; }
+      const ph=S.books.find(x=>x.cloudOnly&&x.fp===meta.fp);
+      if(ph){
+        Object.assign(meta,{pos:Math.min(ph.pos||0,Math.max(b.units.length-1,0)),pg:ph.pg||1,ch:ph.ch||'',bookmarks:ph.bookmarks||[],updated:ph.updated||Date.now()});
+        S.books=S.books.filter(x=>x!==ph);
+      }
+      const content={id,units:b.units,chapters:b.chapters};
+      S.cache.set(id,content); S.books.push(meta);
+      try{ await idb.put('content',content); await idb.put('meta',meta); }catch(e){ setNoStore(); }
+      setStatus('');
+      await openBook(id);
+      toast('“'+meta.title+'” siap dibacakan.');
+    }catch(e){
+      console.error(e);
+      setStatus('Gagal membuka “'+f.name+'”. '+(e&&e.message?e.message:''),null,true);
+    }
+  }
+}
+
+/* =================== side panels =================== */
+function renderPanels(){ renderToc(); renderBookmarks(); renderSearch(); markCurrentRows(); }
+function renderToc(){
+  const p=$('#p-toc'); p.textContent='';
+  if(!S.meta){ p.append(h('p',{class:'empty',text:'Buka buku dulu untuk melihat daftar bab.'})); return; }
+  if(!S.chapters.length){ p.append(h('p',{class:'empty',text:'Buku ini tidak punya daftar isi. Gunakan penggeser halaman di bawah, atau tab Cari.'})); return; }
+  S.chapters.forEach((c,i)=>{
+    p.append(h('button',{class:'row','data-ch':i,type:'button',onclick:()=>{ jump(c.u); closeDrawer(); }},
+      h('div',{class:'rt',text:c.title}),h('div',{class:'rs',text:'Halaman '+c.pg})));
+  });
+}
+function markCurrentRows(){
+  const ci=S.meta?chapterIndexOf(S.cur):-1;
+  $$('#p-toc .row').forEach(r=>r.classList.toggle('cur',+r.dataset.ch===ci));
+}
+function addBookmark(){
+  if(!S.meta) return;
+  const m=S.meta; const i=m.bookmarks.findIndex(b=>b.u===S.cur);
+  if(i>=0){ m.bookmarks.splice(i,1); toast('Penanda dihapus.'); }
+  else{
+    const u=S.units[S.cur];
+    m.bookmarks.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),u:S.cur,pg:u.pg,ch:chapterTitleOf(S.cur),snip:u.t.slice(0,110),note:'',ts:Date.now()});
+    toast('Ditandai di halaman '+u.pg+'.');
+  }
+  touchBook(); persist(); cloudFlushNow(); renderBookmarks(); renderPage(S.pgShown);
+}
+function renderBookmarks(){
+  const p=$('#p-bm'); p.textContent='';
+  const list=S.meta?[...S.meta.bookmarks].sort((a,b)=>a.u-b.u):[];
+  $('#nBm').textContent=list.length;
+  if(!S.meta){ p.append(h('p',{class:'empty',text:'Buka buku dulu untuk melihat penanda.'})); return; }
+  const addBtn=h('button',{class:'btn primary block',type:'button',style:'margin-bottom:10px',onclick:addBookmark});
+  addBtn.innerHTML=svg('bookmark',18); addBtn.append('Tandai posisi sekarang'); p.append(addBtn);
+  if(!list.length){ p.append(h('p',{class:'empty',text:'Belum ada penanda. Tandai kalimat yang sedang dibaca, dan tambahkan catatan kalau perlu.'})); return; }
+  list.forEach(b=>{
+    const note=h('input',{type:'text',placeholder:'Catatan (opsional)',value:b.note||'','aria-label':'Catatan penanda'});
+    note.addEventListener('input',()=>{ b.note=note.value; touchBook(); persistSoon(); });
+    p.append(h('div',{class:'bmrow'},
+      h('div',{class:'bt'},
+        h('button',{class:'go',type:'button',onclick:()=>{ jump(b.u); closeDrawer(); }},
+          h('div',{class:'rs',text:'Halaman '+b.pg+(b.ch?' · '+b.ch:'')}),
+          h('div',{class:'snip',text:b.snip+(b.snip.length>=110?'…':'')})),
+        (()=>{ const x=h('button',{class:'ib',type:'button',title:'Hapus penanda','aria-label':'Hapus penanda',onclick:()=>{ S.meta.bookmarks=S.meta.bookmarks.filter(z=>z.id!==b.id); touchBook(); persist(); cloudFlushNow(); renderBookmarks(); renderPage(S.pgShown); }}); x.innerHTML=svg('x',18); return x; })()),
+      note));
+  });
+}
+let qT=0;
+function renderSearch(){ doSearch(); }
+function doSearch(){
+  const box=$('#results'); box.textContent='';
+  const q=clean($('#q').value).toLowerCase();
+  if(!S.meta){ box.append(h('p',{class:'empty',text:'Buka buku dulu, lalu cari kalimat yang kamu ingat dari Xteink untuk lanjut dari situ.'})); return; }
+  if(q.length<3){ box.append(h('p',{class:'empty',text:'Ketik minimal 3 huruf. Cocok untuk menemukan titik terakhir kamu baca di Xteink, karena nomor halaman EPUB tiap perangkat berbeda.'})); return; }
+  let n=0;
+  for(let i=0;i<S.units.length&&n<60;i++){
+    const t=S.units[i].t, k=t.toLowerCase().indexOf(q);
+    if(k<0) continue; n++;
+    const s=Math.max(0,k-40), e=Math.min(t.length,k+q.length+70);
+    const row=h('button',{class:'row',type:'button',onclick:()=>{ jump(i); closeDrawer(); }},
+      h('div',{class:'rt'},(s>0?'…':''),t.slice(s,k),h('mark',{text:t.slice(k,k+q.length)}),t.slice(k+q.length,e),(e<t.length?'…':'')),
+      h('div',{class:'rs',text:'Halaman '+S.units[i].pg+(chapterTitleOf(i)?' · '+chapterTitleOf(i):'')}));
+    box.append(row);
+  }
+  if(!n) box.append(h('p',{class:'empty',text:'Tidak ketemu. Coba kata lain atau potongan kalimat yang lebih pendek.'}));
+}
+
+/* =================== sleep timer =================== */
+let sleepTick=0;
+function setSleep(v){
+  clearInterval(sleepTick);
+  if(v==='ch') S.sleep={type:'ch',at:0};
+  else if(+v>0){ S.sleep={type:'time',at:Date.now()+(+v)*60000}; sleepTick=setInterval(sleepHint,15000); }
+  else S.sleep={type:0,at:0};
+  $$('#sleepChips .chip').forEach(c=>c.setAttribute('aria-pressed',String(String(c.dataset.s)===String(v||0))));
+  sleepHint();
+}
+function sleepHint(){
+  const h_=$('#sleepHint'), sl=S.sleep;
+  h_.textContent=sl.type==='time'?'Berhenti sekitar '+Math.max(1,Math.ceil((sl.at-Date.now())/60000))+' menit lagi (selesai di akhir kalimat).':sl.type==='ch'?'Berhenti saat bab ini selesai.':'';
+}
+
+/* =================== drawer / tabs / sheet =================== */
+const isMobile=()=>matchMedia('(max-width:980px)').matches;
+function openDrawer(){ if(isMobile()){ $('#side').classList.add('open'); $('#scrim').classList.add('open'); } }
+function closeDrawer(){ $('#side').classList.remove('open'); $('#scrim').classList.remove('open'); }
+function showTab(name){
+  $$('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===name)));
+  $$('.panel').forEach(p=>p.hidden=(p.id!=='p-'+name));
+  if(name==='find') setTimeout(()=>$('#q').focus(),50);
+}
+function applyTheme(){
+  const t=S.settings.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  document.documentElement.dataset.theme=t;
+}
+function applyFont(){ document.documentElement.style.setProperty('--fs',S.settings.fs+'px'); }
+function applyRate(fromInput){
+  const cl=engineNow()==='claude', lo=cl?0.7:0.5, hi=cl?1.5:2.5;
+  ['#rate','#rate2'].forEach(id=>{ $(id).min=lo; $(id).max=hi; });
+  const r=Math.min(hi,Math.max(lo,+S.settings.rate));
+  S.settings.rate=r;
+  $('#rate').value=r; $('#rate2').value=r;
+  $('#rateLabel').textContent=fmtRate(r); $('#rateTxt').textContent=fmtRate(r);
+  saveSettings();
+}
+
+/* =================== sinkron akun Claude (db + user) =================== */
+const C={db:null,uid:null,email:'',ready:false,docs:new Map(),dirty:new Set(),sent:new Map(),timer:0,busy:false,prefs:null,prefsDirty:false,prefsSent:'',pulled:0,last:0};
+function cyrb53(str,seed=0){
+  let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;
+  for(let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h1=Math.imul(h1^ch,2654435761); h2=Math.imul(h2^ch,1597334677); }
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);
+}
+function fingerprint(m,units){
+  const f=units.length?units[0].t.slice(0,120):'', l=units.length?units[units.length-1].t.slice(0,120):'';
+  return cyrb53([m.type,m.title,units.length,f,l].join('|'));
+}
+function setSync(state,msg){ const el=$('#syncState'); if(!el) return; el.dataset.s=state; el.textContent=msg; }
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
+const col=()=>C.db.collection('data/users/'+C.uid);
+
+const FBCFG=window.FIREBASE_CONFIG;
+let localMode=false; try{ localMode=sessionStorage.getItem('pd.local')==='1'; }catch(e){}
+const FB={on:!!(FBCFG&&FBCFG.apiKey&&!/^ISI_/.test(FBCFG.apiKey)&&!window.claude&&!localMode)};
+async function connectFirebase(){
+  try{
+    const base='https://www.gstatic.com/firebasejs/13.4.0/';
+    const [appM,authM,fsM]=await Promise.all([import(base+'firebase-app.js'),import(base+'firebase-auth.js'),import(base+'firebase-firestore.js')]);
+    const app=appM.initializeApp(FBCFG); const auth=authM.getAuth(app);
+    const user=await new Promise(res=>{ const un=authM.onAuthStateChanged(auth,u=>{ un(); res(u); }); });
+    if(!user){ location.replace('index.html'); return null; }
+    const fdb=fsM.getFirestore(app);
+    const colRef=fsM.collection(fdb,'users',user.uid,'pd');
+    const clean=o=>JSON.parse(JSON.stringify(o));
+    const shim={
+      get:async()=>{ const sn=await fsM.getDocs(colRef); return {docs:sn.docs.map(d=>({id:d.id,data:()=>d.data()}))}; },
+      doc:id=>({ set:b=>fsM.setDoc(fsM.doc(fdb,'users',user.uid,'pd',id),clean(b)), delete:()=>fsM.deleteDoc(fsM.doc(fdb,'users',user.uid,'pd',id)) })
+    };
+    const lb=$('#logoutBtn'); lb.hidden=false;
+    lb.onclick=async()=>{ try{ await authM.signOut(auth); }catch(e){} location.replace('index.html'); };
+    document.documentElement.removeAttribute('data-gate');
+    return {uid:user.uid,email:user.email||'',db:{collection:()=>shim}};
+  }catch(e){
+    document.documentElement.removeAttribute('data-gate'); return null;
+  }
+}
+async function initCloud(){
+  try{
+    let db=null,uid=null,email='';
+    if(window.claude&&claude.use){
+      const [user,cdb]=await Promise.all([claude.use('user'),claude.use('db')]);
+      const id=user?await user.id():null;
+      if(cdb&&id){ db=cdb; uid=id; }
+    }
+    if(!db&&FB.on){
+      const ctx=await connectFirebase();
+      if(ctx){ db=ctx.db; uid=ctx.uid; email=ctx.email; }
+    }
+    if(!db||!uid){
+      setSync('off',FB.on?'Belum bisa terhubung ke akunmu. Progres tersimpan di perangkat ini.':(window.claude?'Masuk ke akun Claude di perangkat ini supaya progres ikut tersimpan dan tersinkron.':'Kamu memakai mode tanpa akun, jadi progres hanya tersimpan di perangkat ini.'));
+      return;
+    }
+    C.db=db; C.uid=uid; C.email=email;
+    await withTimeout(pullCloud(),10000);
+    C.ready=true;
+    if(C.prefs) applyPrefs(C.prefs);
+    C.prefsDirty=!C.prefs;
+    await mergeCloud();
+    setSync('on',syncOkText());
+    cloudSoon();
+  }catch(e){ setSync('warn','Belum bisa terhubung ke akunmu. Progres tetap tersimpan di perangkat ini.'); }
+}
+function syncOkText(){ return (C.email?'Masuk sebagai '+C.email+'. ':'Tersambung ke akun Claude-mu. ')+'Posisi dengar/baca dan penanda tersimpan otomatis.'; }
+async function pullCloud(){
+  const snap=await col().get();
+  C.docs=new Map(); C.prefs=null;
+  snap.docs.forEach(d=>{
+    const v=d.data(); if(!v) return;
+    if(d.id==='prefs') C.prefs=v;
+    else if(d.id.startsWith('book-')){ C.docs.set(d.id.slice(5),v); C.sent.set(d.id.slice(5),JSON.stringify([v.pos||0,v.pg||1,v.bookmarks||[]])); }
+  });
+  C.pulled=Date.now();
+}
+function applyPrefs(p){
+  const s=S.settings;
+  if(typeof p.rate==='number') s.rate=p.rate;
+  if(typeof p.pitch==='number') s.pitch=p.pitch;
+  if(p.gender==='all'||p.gender==='f'||p.gender==='m') s.gender=p.gender;
+  if(typeof p.cvoice==='string') s.cvoice=p.cvoice;
+  ls.set('pd.settings',s); applyRate(); $('#pitch').value=s.pitch; renderVoiceUI();
+}
+async function ensureFps(){
+  for(const m of S.books){
+    if(m.fp||m.cloudOnly) continue;
+    try{
+      const c=S.cache.get(m.id)||await idb.get('content',m.id);
+      if(c){ S.cache.set(m.id,c); m.fp=fingerprint(m,c.units); idb.put('meta',m).catch(()=>{}); }
+    }catch(e){}
+  }
+}
+function applyCloudFields(m,cd){
+  m.pos=cd.pos||0; m.pg=cd.pg||1; m.ch=cd.ch||m.ch||''; m.bookmarks=cd.bookmarks||[]; m.updated=cd.updated||m.updated;
+  idb.put('meta',m).catch(()=>{});
+}
+async function mergeCloud(){
+  await ensureFps();
+  const byFp=new Map(S.books.filter(b=>b.fp&&!b.cloudOnly).map(b=>[b.fp,b]));
+  for(const [fp,cd] of C.docs){
+    const m=byFp.get(fp);
+    if(m){
+      if((cd.updated||0)>(m.updated||0)){
+        if(m===S.meta&&S.playing) continue;
+        applyCloudFields(m,cd);
+        if(m===S.meta){
+          S.cur=Math.min(m.pos,Math.max(S.units.length-1,0)); S.curEnd=-1;
+          renderPage(S.units[S.cur]?S.units[S.cur].pg:1); highlight(true); renderBookmarks(); updateHeader();
+          toast('Dilanjutkan dari perangkat lain: halaman '+m.pg+'.');
+        }
+      }else if((m.updated||0)>(cd.updated||0)) C.dirty.add(fp);
+    }else if(!S.books.some(b=>b.fp===fp)){
+      S.books.push({id:'cloud-'+fp,fp,cloudOnly:true,title:cd.title||'Buku',author:cd.author||'',type:cd.type||'epub',lang:cd.lang||'',nPages:cd.nPages||1,nUnits:cd.nUnits||1,pos:cd.pos||0,pg:cd.pg||1,ch:cd.ch||'',bookmarks:cd.bookmarks||[],updated:cd.updated||0});
+    }
+  }
+  for(const m of S.books) if(m.fp&&!m.cloudOnly&&!C.docs.has(m.fp)) C.dirty.add(m.fp);
+  renderLibrary(); if(S.meta) renderBookmarks();
+}
+async function refreshCloud(){
+  if(!C.ready||C.busy||Date.now()-C.pulled<15000) return;
+  try{ await withTimeout(pullCloud(),10000); await mergeCloud(); }catch(e){}
+}
+function cloudSoon(){
+  if(!C.ready||C.timer) return;
+  C.timer=setTimeout(()=>{ C.timer=0; flushCloud(); },S.playing?10000:1500);
+}
+function cloudFlushNow(){
+  if(!C.ready) return;
+  clearTimeout(C.timer); C.timer=0; flushCloud();
+}
+async function flushCloud(){
+  if(!C.ready||C.busy) return;
+  C.busy=true; let failed=null;
+  try{
+    for(const fp of [...C.dirty]){
+      const m=S.books.find(b=>b.fp===fp&&!b.cloudOnly); C.dirty.delete(fp); if(!m) continue;
+      failed=fp;
+      const body={title:m.title,author:m.author||'',type:m.type,lang:m.lang||'',nPages:m.nPages,nUnits:m.nUnits,pos:m.pos||0,pg:m.pg||1,ch:m.ch||'',bookmarks:m.bookmarks||[],updated:m.updated||Date.now()};
+      const sig=JSON.stringify([body.pos,body.pg,body.bookmarks]);
+      if(C.sent.get(fp)===sig){ failed=null; continue; }
+      await col().doc('book-'+fp).set(body);
+      C.sent.set(fp,sig); C.docs.set(fp,body); C.last=Date.now(); failed=null;
+    }
+    if(C.prefsDirty){
+      const s=S.settings; const body={rate:s.rate,pitch:s.pitch,gender:s.gender,cvoice:s.cvoice||'buttery'};
+      const sig=JSON.stringify(body); C.prefsDirty=false;
+      if(sig!==C.prefsSent){ await col().doc('prefs').set(body); C.prefsSent=sig; }
+    }
+    setSync('on',syncOkText());
+  }catch(e){
+    const code=e&&e.code;
+    if(failed) C.dirty.add(failed);
+    if(code==='invalid_argument'||code==='revoked'||code==='not_granted'||code==='permission-denied'){
+      C.ready=false; setSync('off','Akunmu belum punya izin menyimpan di halaman ini, jadi progres hanya tersimpan di perangkat ini.');
+    }else{
+      setSync('warn','Gagal menyimpan ke akun, nanti dicoba lagi. Progres tetap aman di perangkat ini.');
+      setTimeout(cloudSoon,15000);
+    }
+  }
+  C.busy=false;
+  if(C.ready&&C.dirty.size) cloudSoon();
+}
+
+/* =================== wire up =================== */
+function init(){
+  paintIcons(); updatePlayBtn();
+  applyTheme(); applyFont(); applyRate();
+  $('#pitch').value=S.settings.pitch; $('#pitchTxt').textContent=(+S.settings.pitch).toFixed(2).replace(/0$/,'');
+  if(!synth) $('#voiceHint').textContent='Browser ini tidak mendukung suara bawaan. Coba Chrome, Edge, atau Safari.';
+  if(synth){ loadVoices(); synth.onvoiceschanged=loadVoices; setTimeout(loadVoices,700); setTimeout(loadVoices,2500); }
+  setTimeout(()=>document.documentElement.removeAttribute('data-gate'),12000);
+  renderVoiceUI(); renderPanels(); loadLibrary().then(initCloud);
+  try{ if(window.claude&&claude.use) claude.use('tts').then(t=>{ if(!t) return; S.tts=t; t.onLine(onClaudeLine); applyRate(); renderVoiceUI(); }).catch(()=>{}); }catch(e){}
+
+  $$('.tab').forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+  $('#themeBtn').addEventListener('click',()=>{ S.settings.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'; saveSettings(); applyTheme(); });
+  $('#menuBtn').addEventListener('click',()=>{ openDrawer(); });
+  $('#scrim').addEventListener('click',closeDrawer);
+
+  const pick=()=>$('#file').click();
+  $('#pick').addEventListener('click',pick); $('#pick2').addEventListener('click',pick);
+  $('#file').addEventListener('change',e=>{ const fs=[...e.target.files]; e.target.value=''; if(fs.length) importFiles(fs); });
+  const dz=[$('#drop'),$('#drop2')];
+  let dragDepth=0;
+  window.addEventListener('dragenter',e=>{ e.preventDefault(); dragDepth++; dz.forEach(d=>d.classList.add('over')); });
+  window.addEventListener('dragleave',e=>{ dragDepth=Math.max(0,dragDepth-1); if(!dragDepth) dz.forEach(d=>d.classList.remove('over')); });
+  window.addEventListener('dragover',e=>e.preventDefault());
+  window.addEventListener('drop',e=>{ e.preventDefault(); dragDepth=0; dz.forEach(d=>d.classList.remove('over')); const fs=[...(e.dataTransfer?e.dataTransfer.files:[])]; if(fs.length) importFiles(fs); });
+
+  $('#bPlay').addEventListener('click',togglePlay);
+  $('#bPrev').addEventListener('click',()=>step(-1));
+  $('#bNext').addEventListener('click',()=>step(1));
+  $('#bPrevPage').addEventListener('click',()=>pageStep(-1));
+  $('#bNextPage').addEventListener('click',()=>pageStep(1));
+  $('#bBm').addEventListener('click',addBookmark);
+  $('#bSet').addEventListener('click',()=>{ const s=$('#sheet'); s.hidden=!s.hidden; });
+  $('#pgSlider').addEventListener('input',e=>{ $('#pgLabel').textContent='Hal '+e.target.value+' / '+S.nPages; });
+  $('#pgSlider').addEventListener('change',e=>gotoPage(e.target.value));
+  $('#pgInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ gotoPage(e.target.value); e.target.blur(); } });
+  $('#pgInput').addEventListener('change',e=>gotoPage(e.target.value));
+
+  const setRate=r=>{ S.settings.rate=r; applyRate(); restartIfPlaying(); };
+  $('#rate').addEventListener('change',e=>setRate(+e.target.value));
+  $('#rate').addEventListener('input',e=>{ $('#rateLabel').textContent=fmtRate(e.target.value); });
+  $('#rate2').addEventListener('change',e=>setRate(+e.target.value));
+  $('#rate2').addEventListener('input',e=>{ $('#rateTxt').textContent=fmtRate(e.target.value); });
+  $('#rMinus').addEventListener('click',()=>setRate(Math.round((+S.settings.rate-0.1)*100)/100));
+  $('#rPlus').addEventListener('click',()=>setRate(Math.round((+S.settings.rate+0.1)*100)/100));
+  $('#pitch').addEventListener('input',e=>{ $('#pitchTxt').textContent=(+e.target.value).toFixed(2).replace(/0$/,''); });
+  $('#pitch').addEventListener('change',e=>{ S.settings.pitch=+e.target.value; saveSettings(); restartIfPlaying(); });
+
+  const ensureVoice=()=>{ const v=activeVoice(); if(v) S.settings.voiceURI=v.voiceURI; saveSettings(); renderVoiceUI(); restartIfPlaying(); };
+  $$('#gSeg button').forEach(b=>b.addEventListener('click',()=>{ S.settings.gender=b.dataset.g; const l=filteredVoices(); if(l.length&&!l.some(x=>x.v.voiceURI===S.settings.voiceURI)) S.settings.voiceURI=l[0].v.voiceURI; saveSettings(); renderVoiceUI(); restartIfPlaying(); }));
+  $('#langSel').addEventListener('change',e=>{ S.settings.lang=e.target.value; const l=filteredVoices(); if(l.length&&!l.some(x=>x.v.voiceURI===S.settings.voiceURI)) S.settings.voiceURI=l[0].v.voiceURI; saveSettings(); renderVoiceUI(); restartIfPlaying(); });
+  $('#voiceSel').addEventListener('change',e=>{ if(engineNow()==='claude') S.settings.cvoice=e.target.value; else S.settings.voiceURI=e.target.value; saveSettings(); restartIfPlaying(); });
+  $$('#eSeg button').forEach(b=>b.addEventListener('click',()=>{ const was=S.playing; if(was) stopPlay(); S.settings.engine=b.dataset.e; saveSettings(); applyRate(); renderVoiceUI(); if(was) speakFrom(S.cur,{fresh:true}); }));
+  $('#testVoice').addEventListener('click',()=>{
+    if(engineNow()==='claude'){ if(S.playing) stopPlay(); S.tts.speak('Halo, begini suaraku saat membacakan bukumu.',{voice:S.settings.cvoice||'buttery',language:'id',rate:+S.settings.rate}).catch(()=>{}); return; }
+    if(!synth) return;
+    const was=S.playing; if(was) stopPlay(); synth.cancel();
+    const v=activeVoice(); const id_=(v?v.lang:'').toLowerCase().startsWith('id')||(!v&&effLang()==='id');
+    const u=new SpeechSynthesisUtterance(id_?'Halo, begini suaraku saat membacakan bukumu.':'Hello, this is how I will read your book.');
+    if(v){ u.voice=v; u.lang=v.lang; } u.rate=+S.settings.rate; u.pitch=+S.settings.pitch; S.utt=u;
+    setTimeout(()=>synth.speak(u),40);
+  });
+  $$('#sleepChips .chip').forEach(c=>c.addEventListener('click',()=>setSleep(c.dataset.s)));
+  $('#fsMinus').addEventListener('click',()=>{ S.settings.fs=Math.max(15,S.settings.fs-1); applyFont(); saveSettings(); });
+  $('#fsPlus').addEventListener('click',()=>{ S.settings.fs=Math.min(34,S.settings.fs+1); applyFont(); saveSettings(); });
+  $('#q').addEventListener('input',()=>{ clearTimeout(qT); qT=setTimeout(doSearch,220); });
+
+  $('#page').addEventListener('click',e=>{ const sp=e.target.closest('.u'); if(sp&&S.meta){ jump(+sp.dataset.u); } });
+  document.addEventListener('click',e=>{ const s=$('#sheet'); if(!s.hidden&&!e.target.closest('#sheet')&&!e.target.closest('#bSet')) s.hidden=true; });
+  document.addEventListener('keydown',e=>{
+    if(e.target.closest('input,select,textarea')) return;
+    if((e.key===' '||e.key==='Enter')&&e.target.closest('button,[role=button]')) return;
+    if(e.key==='Escape'){ if(!$('#sheet').hidden||$('#side').classList.contains('open')){ e.preventDefault(); } $('#sheet').hidden=true; closeDrawer(); return; }
+    if(!S.meta) return;
+    if(e.key===' '){ e.preventDefault(); togglePlay(); }
+    else if(e.key==='ArrowRight'){ e.preventDefault(); e.shiftKey?pageStep(1):step(1); }
+    else if(e.key==='ArrowLeft'){ e.preventDefault(); e.shiftKey?pageStep(-1):step(-1); }
+    else if(e.key==='b'||e.key==='B'){ addBookmark(); }
+  });
+  window.addEventListener('pagehide',()=>{ if(synth) synth.cancel(); try{ if(S.tts) S.tts.stop(); }catch(e){} persist(); cloudFlushNow(); });
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden){ persist(); cloudFlushNow(); } else refreshCloud(); });
+}
+init();
+})();
+</script>
+<script>
+(function(){
+  var SIZES=[1,.62,1.06,.7,1.28,.58,.86,.8,1.12,.66,.92,.6,1.22,.72,1];
+  function quirky(el,shift){
+    var t=el.getAttribute('data-text'); el.textContent=''; el.setAttribute('aria-label',t);
+    var wd=document.createElement('span'); wd.className='w'; wd.setAttribute('aria-hidden','true'); el.appendChild(wd);
+    for(var i=0;i<t.length;i++){
+      var ch=t[i],s=document.createElement('span'); s.setAttribute('aria-hidden','true');
+      if(ch===' '){s.className='sp';el.appendChild(s);wd=document.createElement('span');wd.className='w';wd.setAttribute('aria-hidden','true');el.appendChild(wd);continue;}
+      s.textContent=ch; var k=(i+shift)%SIZES.length; s.style.fontSize=SIZES[k]+'em';
+      if((i+shift)%4===2)s.className='sf';
+      if((i+shift)%5===1)s.style.fontWeight='800';
+      s.style.transform='translateY('+(((i*7)%5)-2)*.02+'em) rotate('+(((i*13)%7)-3)*1.2+'deg)';
+      wd.appendChild(s);
+    }
+  }
+  quirky(document.getElementById('brandH'),3); quirky(document.getElementById('heroH'),0);
+})();
+</script>
+</body>
+</html>
