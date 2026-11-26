@@ -506,6 +506,14 @@ input[type=range]{accent-color:var(--accent);height:28px}
           </div>
         </section>
         <section>
+          <h3>Layar tetap menyala</h3>
+          <div class="chips" id="wakeChips">
+            <button class="chip" type="button" data-w="1" aria-pressed="true">Nyala</button>
+            <button class="chip" type="button" data-w="0" aria-pressed="false">Ikuti perangkat</button>
+          </div>
+          <p class="hint" id="wakeHint"></p>
+        </section>
+        <section>
           <h3>Timer tidur</h3>
           <div class="chips" id="sleepChips">
             <button class="chip" type="button" data-s="0" aria-pressed="true">Mati</button>
@@ -998,6 +1006,27 @@ function togglePlay(){
 function restartIfPlaying(){ if(S.playing) speakFrom(S.cur,{fresh:true}); }
 function updatePlayBtn(){
   const b=$('#bPlay'); b.innerHTML=svg(S.playing?'pause':'play',26); b.setAttribute('aria-label',S.playing?'Jeda':'Putar');
+  syncWake();
+}
+/* layar tetap menyala selama memutar (Screen Wake Lock; iOS 16.4+, Chrome/Android) */
+let wakeLock=null;
+function wakeOk(){ return !!(navigator.wakeLock&&navigator.wakeLock.request); }
+async function syncWake(){
+  const want=wakeOk()&&S.settings.keepAwake!==false&&document.visibilityState==='visible';
+  try{
+    if(want&&!wakeLock){
+      const l=await navigator.wakeLock.request('screen'); wakeLock=l;
+      l.addEventListener('release',()=>{ if(wakeLock===l) wakeLock=null; });
+    }else if(!want&&wakeLock){ const l=wakeLock; wakeLock=null; await l.release(); }
+  }catch(e){ wakeLock=null; }
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') syncWake(); });
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ if(!wakeLock) syncWake(); },{passive:true}));
+setTimeout(()=>syncWake(),600);
+function renderWakeUI(){
+  const on=S.settings.keepAwake!==false;
+  $$('#wakeChips button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.w==='1')===on)));
+  $('#wakeHint').textContent=wakeOk()?(on?'Layar tidak akan mati sendiri selama dashboard ini terbuka. Kalau kamu mengunci layar dengan tombol samping, suara tetap berhenti.':'Layar akan mengikuti pengaturan Auto-Lock perangkat.'):'Browser ini belum mendukung fitur ini. Atur Auto-Lock perangkat ke "Never" selama mendengarkan.';
 }
 
 /* =================== reader view =================== */
@@ -1545,6 +1574,8 @@ function init(){
   $$('#gSeg button').forEach(b=>b.addEventListener('click',()=>{ S.settings.gender=b.dataset.g; const l=filteredVoices(); if(l.length&&!l.some(x=>x.v.voiceURI===S.settings.voiceURI)) S.settings.voiceURI=l[0].v.voiceURI; saveSettings(); renderVoiceUI(); restartIfPlaying(); }));
   $('#langSel').addEventListener('change',e=>{ S.settings.lang=e.target.value; const l=filteredVoices(); if(l.length&&!l.some(x=>x.v.voiceURI===S.settings.voiceURI)) S.settings.voiceURI=l[0].v.voiceURI; saveSettings(); renderVoiceUI(); restartIfPlaying(); });
   $('#voiceSel').addEventListener('change',e=>{ if(engineNow()==='claude') S.settings.cvoice=e.target.value; else S.settings.voiceURI=e.target.value; saveSettings(); restartIfPlaying(); });
+  $$('#wakeChips button').forEach(b=>b.addEventListener('click',()=>{ S.settings.keepAwake=b.dataset.w==='1'; saveSettings(); renderWakeUI(); syncWake(); }));
+  renderWakeUI();
   $$('#eSeg button').forEach(b=>b.addEventListener('click',()=>{ const was=S.playing; if(was) stopPlay(); S.settings.engine=b.dataset.e; saveSettings(); applyRate(); renderVoiceUI(); if(was) speakFrom(S.cur,{fresh:true}); }));
   $('#testVoice').addEventListener('click',()=>{
     if(engineNow()==='claude'){ if(S.playing) stopPlay(); S.tts.speak('Halo, begini suaraku saat membacakan bukumu.',{voice:S.settings.cvoice||'buttery',language:'id',rate:+S.settings.rate}).catch(()=>{}); return; }
